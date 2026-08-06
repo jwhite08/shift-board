@@ -8,50 +8,62 @@
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
 <style>
   :root {
-    --ink: #1B2430;
-    --ink-soft: #56606D;
-    --paper: #F3F5F7;
-    --surface: #FFFFFF;
-    --line: #DEE3E8;
-    --teal: #0F7A72;
-    --teal-soft: #E3F3F1;
-    --danger: #C1443C;
-    --danger-soft: #FBEAE8;
-    --radius: 10px;
+    --bg: #0E141C;
+    --surface: #171F29;
+    --surface-2: #1D2733;
+    --line: #2A3644;
+    --text: #F2F6F9;
+    --text-soft: #8D98A6;
+    --text-faint: #5C6773;
+    --blue: #2E8FE0;
+    --blue-bright: #5DAAF5;
+    --blue-soft: rgba(46, 143, 224, 0.16);
+    --blue-border: rgba(46, 143, 224, 0.4);
+    --danger: #E5565B;
+    --danger-soft: rgba(229, 86, 91, 0.14);
+    --radius: 14px;
   }
   * { box-sizing: border-box; }
   html, body {
-    margin: 0; background: var(--paper); color: var(--ink);
+    margin: 0; background: var(--bg); color: var(--text);
     font-family: 'Inter', system-ui, sans-serif;
   }
+  body {
+    background: radial-gradient(1100px 550px at 50% -8%, #1B2733 0%, #0E141C 55%);
+    min-height: 100vh;
+  }
   h1, h2 { font-family: 'Space Grotesk', sans-serif; margin: 0; }
-  a { color: var(--teal); }
+  a { color: var(--blue-bright); }
 
   .topbar {
-    background: var(--surface); border-bottom: 1px solid var(--line);
+    background: rgba(23, 31, 41, 0.9);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--line);
     padding: 18px 20px;
   }
   .topbar-inner {
     max-width: 900px; margin: 0 auto; display: flex; justify-content: space-between; align-items: baseline;
   }
-  .topbar h1 { font-size: 20px; }
+  .topbar h1 { font-size: 20px; color: var(--blue-bright); text-shadow: 0 0 18px rgba(46,143,224,0.35); }
   .topbar a { font-size: 13px; font-weight: 600; }
 
   main { max-width: 900px; margin: 0 auto; padding: 28px 20px 80px; }
 
   #lockScreen {
-    max-width: 380px; margin: 80px auto; background: var(--surface);
+    max-width: 380px; margin: 80px auto; background: var(--surface-2);
     border: 1px solid var(--line); border-radius: var(--radius); padding: 28px; text-align: center;
   }
-  #lockScreen p { color: var(--ink-soft); font-size: 13.5px; margin-bottom: 18px; }
+  #lockScreen h2 { color: var(--text); }
+  #lockScreen p { color: var(--text-soft); font-size: 13.5px; margin: 8px 0 18px; }
   #lockScreen input {
     width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--line);
-    font-size: 14px; margin-bottom: 10px; text-align: center;
+    background: var(--bg); color: var(--text); font-size: 14px; margin-bottom: 10px; text-align: center;
   }
   #lockScreen button {
     width: 100%; padding: 10px; border-radius: 8px; border: none;
-    background: var(--teal); color: white; font-weight: 700; cursor: pointer;
+    background: var(--blue); color: #F5F9FC; font-weight: 700; cursor: pointer;
   }
+  #lockScreen button:hover { opacity: 0.9; }
   #lockError { color: var(--danger); font-size: 12.5px; margin-top: 8px; min-height: 16px; }
 
   #app { display: none; }
@@ -60,50 +72,53 @@
     background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
     padding: 20px; margin-bottom: 20px;
   }
-  .card h2 { font-size: 16px; margin-bottom: 4px; }
-  .card .sub { font-size: 12.5px; color: var(--ink-soft); margin-bottom: 16px; }
+  .card h2 { font-size: 16px; color: var(--text); margin-bottom: 4px; }
+  .card .sub { font-size: 12.5px; color: var(--text-soft); margin-bottom: 16px; }
 
   .loc-block {
-    border: 1px solid var(--line); border-radius: 8px; padding: 14px; margin-bottom: 12px; background: var(--paper);
+    border: 1px solid var(--line); border-radius: 10px; padding: 14px; margin-bottom: 12px; background: var(--surface-2);
   }
-  .loc-block-head {
-    display: flex; gap: 8px; align-items: center; margin-bottom: 10px;
-  }
+  .loc-block-head { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; }
   .loc-block-head input {
-    flex: 1; padding: 8px 10px; border-radius: 6px; border: 1px solid var(--line); font-weight: 600; font-size: 14px;
+    flex: 1; padding: 8px 10px; border-radius: 6px; border: 1px solid var(--line);
+    background: var(--bg); color: var(--text); font-weight: 600; font-size: 14px;
   }
 
   .ws-line { display: flex; gap: 8px; margin-bottom: 6px; }
   .ws-line input:nth-child(1) { flex: 2; }
   .ws-line input:nth-child(2) { flex: 1; font-family: 'IBM Plex Mono', monospace; }
   .ws-line input {
-    padding: 7px 9px; border-radius: 6px; border: 1px solid var(--line); font-size: 13px;
+    padding: 7px 9px; border-radius: 6px; border: 1px solid var(--line);
+    background: var(--bg); color: var(--text); font-size: 13px;
   }
 
   .btn-sm {
     border: 1px solid var(--line); background: var(--surface); border-radius: 6px;
-    padding: 6px 9px; font-size: 12px; font-weight: 600; cursor: pointer; color: var(--ink-soft);
+    padding: 6px 9px; font-size: 12px; font-weight: 600; cursor: pointer; color: var(--text-soft);
   }
-  .btn-sm:hover { color: var(--ink); }
+  .btn-sm:hover { color: var(--text); }
   .btn-sm.danger:hover { color: var(--danger); border-color: var(--danger); }
 
   .btn-add {
     border: 1px dashed var(--line); background: transparent; border-radius: 8px;
-    padding: 9px; width: 100%; font-weight: 600; font-size: 13px; color: var(--ink-soft); cursor: pointer; margin-top: 6px;
+    padding: 9px; width: 100%; font-weight: 600; font-size: 13px; color: var(--text-soft); cursor: pointer; margin-top: 6px;
   }
-  .btn-add:hover { color: var(--teal); border-color: var(--teal); }
+  .btn-add:hover { color: var(--blue-bright); border-color: var(--blue-border); }
 
   .staff-row { display: flex; gap: 8px; margin-bottom: 6px; }
-  .staff-row input { flex: 1; padding: 8px 10px; border-radius: 6px; border: 1px solid var(--line); font-size: 13px; }
+  .staff-row input {
+    flex: 1; padding: 8px 10px; border-radius: 6px; border: 1px solid var(--line);
+    background: var(--bg); color: var(--text); font-size: 13px;
+  }
 
   .save-bar {
-    position: sticky; bottom: 0; background: var(--surface); border-top: 1px solid var(--line);
+    position: sticky; bottom: 0; background: var(--surface-2); border-top: 1px solid var(--line);
     padding: 14px 20px; margin: 0 -20px -80px; display: flex; justify-content: flex-end; gap: 10px; align-items: center;
   }
-  .save-bar .status { font-size: 12.5px; color: var(--ink-soft); margin-right: auto; }
+  .save-bar .status { font-size: 12.5px; color: var(--text-soft); margin-right: auto; }
   .btn-primary {
-    padding: 10px 20px; border-radius: 8px; border: none; background: var(--teal);
-    color: white; font-weight: 700; font-size: 14px; cursor: pointer;
+    padding: 10px 20px; border-radius: 8px; border: none; background: var(--blue);
+    color: #F5F9FC; font-weight: 700; font-size: 14px; cursor: pointer;
   }
   .btn-primary:hover { opacity: 0.9; }
 </style>
@@ -111,7 +126,7 @@
 <body>
 
 <div id="lockScreen">
-  <h2 style="font-family:'Space Grotesk',sans-serif; margin-bottom:8px;">Admin access</h2>
+  <h2>Admin access</h2>
   <p>Enter the admin passcode to manage locations, extensions, and staff.</p>
   <input type="password" id="passcodeInput" placeholder="Passcode" />
   <button id="unlockBtn">Unlock</button>
@@ -215,7 +230,7 @@ function renderLocations() {
       </div>
       <button class="btn-add" data-action="add-ws">+ Add workstation</button>
     </div>
-  `).join("") || `<p style="color:var(--ink-soft); font-size:13px;">No locations yet — add one below.</p>`;
+  `).join("") || `<p style="color:var(--text-soft); font-size:13px;">No locations yet — add one below.</p>`;
 
   wireLocationEvents();
 }
@@ -286,7 +301,7 @@ function renderStaff() {
       <input type="text" value="${escapeHtml(s.name)}" data-role="staff-name" />
       <button class="btn-sm danger" data-action="remove-staff">✕</button>
     </div>
-  `).join("") || `<p style="color:var(--ink-soft); font-size:13px;">No staff yet — add one below.</p>`;
+  `).join("") || `<p style="color:var(--text-soft); font-size:13px;">No staff yet — add one below.</p>`;
 
   document.querySelectorAll('[data-action="remove-staff"]').forEach(btn => {
     btn.onclick = (e) => {
