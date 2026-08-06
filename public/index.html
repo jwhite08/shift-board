@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Shift Board — Gastro Associates</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #1B2430;
+    --ink-soft: #56606D;
+    --paper: #F3F5F7;
+    --surface: #FFFFFF;
+    --line: #DEE3E8;
+    --teal: #0F7A72;
+    --teal-soft: #E3F3F1;
+    --amber: #C97A2B;
+    --amber-soft: #FBEEE0;
+    --danger: #C1443C;
+    --danger-soft: #FBEAE8;
+    --radius: 10px;
+    --shift-color: var(--teal);
+    --shift-soft: var(--teal-soft);
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  }
+
+  body[data-shift="PM"] {
+    --shift-color: var(--amber);
+    --shift-soft: var(--amber-soft);
+  }
+
+  h1, h2, h3 {
+    font-family: 'Space Grotesk', 'Inter', sans-serif;
+    margin: 0;
+  }
+
+  button {
+    font-family: inherit;
+  }
+
+  a { color: var(--teal); }
+
+  .topbar {
+    background: var(--surface);
+    border-bottom: 1px solid var(--line);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+
+  .topbar-inner {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 18px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+
+  .brand {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+  }
+
+  .brand h1 {
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+
+  .brand span.tag {
+    font-size: 12px;
+    color: var(--ink-soft);
+    font-weight: 500;
+  }
+
+  .date-nav {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 14px;
+    color: var(--ink-soft);
+  }
+
+  .date-nav button {
+    border: 1px solid var(--line);
+    background: var(--surface);
+    border-radius: 8px;
+    width: 30px;
+    height: 30px;
+    cursor: pointer;
+    font-size: 15px;
+    color: var(--ink);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s;
+  }
+  .date-nav button:hover { background: var(--paper); }
+
+  .date-label {
+    font-weight: 600;
+    color: var(--ink);
+    min-width: 150px;
+    text-align: center;
+  }
+
+  .today-pill {
+    border: 1px solid var(--teal);
+    color: var(--teal);
+    background: var(--teal-soft);
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 4px 10px;
+    cursor: pointer;
+  }
+
+  .shift-switch {
+    display: flex;
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 3px;
+    gap: 3px;
+  }
+
+  .shift-switch button {
+    border: none;
+    background: transparent;
+    padding: 7px 18px;
+    border-radius: 999px;
+    font-weight: 600;
+    font-size: 13px;
+    cursor: pointer;
+    color: var(--ink-soft);
+    letter-spacing: 0.02em;
+    transition: all 0.15s;
+  }
+
+  .shift-switch button.active[data-val="AM"] {
+    background: var(--teal);
+    color: white;
+  }
+  .shift-switch button.active[data-val="PM"] {
+    background: var(--amber);
+    color: white;
+  }
+
+  main {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 28px 20px 60px;
+  }
+
+  .layout {
+    display: grid;
+    grid-template-columns: 1fr 320px;
+    gap: 24px;
+    align-items: start;
+  }
+
+  @media (max-width: 860px) {
+    .layout { grid-template-columns: 1fr; }
+  }
+
+  .section-title {
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--ink-soft);
+    font-weight: 600;
+    margin-bottom: 12px;
+  }
+
+  .board-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 14px;
+  }
+
+  .loc-card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 16px 16px 8px;
+  }
+
+  .loc-card h3 {
+    font-size: 15px;
+    font-weight: 600;
+    margin-bottom: 10px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .ws-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 9px 0;
+    border-bottom: 1px dashed var(--line);
+  }
+  .ws-row:last-child { border-bottom: none; }
+
+  .ws-meta {
+    min-width: 0;
+  }
+
+  .ws-label {
+    font-size: 12px;
+    color: var(--ink-soft);
+    font-weight: 500;
+  }
+
+  .ws-person {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--ink);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .ws-person.empty {
+    color: #A6AEB6;
+    font-weight: 500;
+    font-style: italic;
+  }
+
+  .ext-tag {
+    flex-shrink: 0;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    background: #23303B;
+    color: #EAF1EF;
+    padding: 5px 8px;
+    border-radius: 4px;
+    position: relative;
+  }
+  .ext-tag::before {
+    content: "EXT";
+    font-size: 8px;
+    opacity: 0.55;
+    margin-right: 5px;
+    letter-spacing: 0.08em;
+  }
+
+  .empty-state {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 50px 20px;
+    color: var(--ink-soft);
+    background: var(--surface);
+    border: 1px dashed var(--line);
+    border-radius: var(--radius);
+  }
+
+  .empty-state a { font-weight: 600; }
+
+  /* Sidebar */
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 18px;
+    position: sticky;
+    top: 90px;
+  }
+
+  .panel h2 {
+    font-size: 15px;
+    font-weight: 700;
+    margin-bottom: 4px;
+  }
+
+  .panel .sub {
+    font-size: 12.5px;
+    color: var(--ink-soft);
+    margin-bottom: 16px;
+    line-height: 1.4;
+  }
+
+  label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--ink-soft);
+    margin-bottom: 5px;
+    margin-top: 14px;
+  }
+  label:first-of-type { margin-top: 0; }
+
+  select {
+    width: 100%;
+    padding: 9px 10px;
+    border-radius: 8px;
+    border: 1px solid var(--line);
+    background: var(--paper);
+    font-size: 14px;
+    color: var(--ink);
+    font-family: inherit;
+  }
+  select:disabled { opacity: 0.5; }
+
+  .form-shift-toggle {
+    display: flex;
+    gap: 6px;
+  }
+  .form-shift-toggle button {
+    flex: 1;
+    padding: 8px;
+    border-radius: 8px;
+    border: 1px solid var(--line);
+    background: var(--paper);
+    font-weight: 600;
+    font-size: 12.5px;
+    cursor: pointer;
+    color: var(--ink-soft);
+  }
+  .form-shift-toggle button.active[data-val="AM"] {
+    background: var(--teal-soft);
+    border-color: var(--teal);
+    color: var(--teal);
+  }
+  .form-shift-toggle button.active[data-val="PM"] {
+    background: var(--amber-soft);
+    border-color: var(--amber);
+    color: var(--amber);
+  }
+
+  .ext-preview {
+    margin-top: 8px;
+    font-size: 12.5px;
+    color: var(--ink-soft);
+  }
+  .ext-preview strong {
+    font-family: 'IBM Plex Mono', monospace;
+    color: var(--ink);
+  }
+
+  .btn-primary {
+    width: 100%;
+    margin-top: 18px;
+    padding: 11px;
+    border-radius: 8px;
+    border: none;
+    background: var(--shift-color);
+    color: white;
+    font-weight: 700;
+    font-size: 14px;
+    cursor: pointer;
+    transition: opacity 0.15s;
+  }
+  .btn-primary:hover { opacity: 0.9; }
+  .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .btn-clear {
+    width: 100%;
+    margin-top: 8px;
+    padding: 9px;
+    border-radius: 8px;
+    border: 1px solid var(--line);
+    background: transparent;
+    color: var(--ink-soft);
+    font-weight: 600;
+    font-size: 12.5px;
+    cursor: pointer;
+  }
+  .btn-clear:hover { color: var(--danger); border-color: var(--danger); }
+
+  .toast {
+    margin-top: 12px;
+    font-size: 12.5px;
+    padding: 8px 10px;
+    border-radius: 6px;
+    display: none;
+  }
+  .toast.show { display: block; }
+  .toast.ok { background: var(--teal-soft); color: var(--teal); }
+  .toast.err { background: var(--danger-soft); color: var(--danger); }
+
+  .footer-note {
+    text-align: center;
+    font-size: 12px;
+    color: var(--ink-soft);
+    margin-top: 30px;
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-inner">
+    <div class="brand">
+      <h1>Shift Board</h1>
+      <span class="tag">Gastro Associates</span>
+    </div>
+    <div class="date-nav">
+      <button id="prevDay" title="Previous day">‹</button>
+      <span class="date-label" id="dateLabel">—</span>
+      <button id="nextDay" title="Next day">›</button>
+      <button class="today-pill" id="todayBtn">Today</button>
+    </div>
+    <div class="shift-switch" id="viewShiftSwitch">
+      <button data-val="AM" class="active">AM</button>
+      <button data-val="PM">PM</button>
+    </div>
+  </div>
+</div>
+
+<main>
+  <div class="layout">
+    <div>
+      <div class="section-title" id="boardTitle">AM shift — who's where</div>
+      <div class="board-grid" id="board">
+        <div class="empty-state">Loading board…</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Set my location</h2>
+      <div class="sub">Pick your name and where you're working. This updates the board for everyone right away.</div>
+
+      <label for="staffSelect">Your name</label>
+      <select id="staffSelect"></select>
+
+      <label>Shift</label>
+      <div class="form-shift-toggle" id="formShiftSwitch">
+        <button data-val="AM" class="active">AM</button>
+        <button data-val="PM">PM</button>
+      </div>
+
+      <label for="locationSelect">Office / location</label>
+      <select id="locationSelect">
+        <option value="">Select a location…</option>
+      </select>
+
+      <label for="workstationSelect">Workstation</label>
+      <select id="workstationSelect" disabled>
+        <option value="">Select a location first</option>
+      </select>
+
+      <div class="ext-preview" id="extPreview"></div>
+
+      <button class="btn-primary" id="saveBtn" disabled>Save my location</button>
+      <button class="btn-clear" id="clearBtn">I'm not working this shift</button>
+
+      <div class="toast" id="toast"></div>
+    </div>
+  </div>
+
+  <div class="footer-note">Board refreshes automatically. Locations, extensions, and staff are managed from the <a href="/admin.html">admin page</a>.</div>
+</main>
+
+<script>
+const API_CONFIG = "/api/config";
+const API_SCHEDULE = "/api/schedule";
+const REFRESH_MS = 30000;
+const LAST_STAFF_KEY = "shiftboard:lastStaffId";
+
+let config = { locations: [], staff: [] };
+let schedule = { AM: {}, PM: {} };
+let viewDate = todayStr();
+let viewShift = (new Date().getHours() < 12) ? "AM" : "PM";
+let formShift = viewShift;
+
+function todayStr() {
+  const d = new Date();
+  return d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0") + "-" + String(d.getDate()).padStart(2,"0");
+}
+
+function addDays(dateStr, n) {
+  const d = new Date(dateStr + "T00:00:00");
+  d.setDate(d.getDate() + n);
+  return d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0") + "-" + String(d.getDate()).padStart(2,"0");
+}
+
+function formatDateLabel(dateStr) {
+  const d = new Date(dateStr + "T00:00:00");
+  const opts = { weekday: "short", month: "short", day: "numeric" };
+  const label = d.toLocaleDateString(undefined, opts);
+  return dateStr === todayStr() ? label + " (today)" : label;
+}
+
+async function loadConfig() {
+  const res = await fetch(API_CONFIG);
+  config = await res.json();
+  populateStaffSelect();
+  populateLocationSelect();
+}
+
+async function loadSchedule() {
+  const res = await fetch(`${API_SCHEDULE}?date=${viewDate}`);
+  schedule = await res.json();
+  renderBoard();
+}
+
+function populateStaffSelect() {
+  const sel = document.getElementById("staffSelect");
+  const sorted = [...config.staff].sort((a,b) => a.name.localeCompare(b.name));
+  sel.innerHTML = '<option value="">Select your name…</option>' +
+    sorted.map(s => `<option value="${s.id}">${escapeHtml(s.name)}</option>`).join("");
+
+  const last = localStorage.getItem(LAST_STAFF_KEY);
+  if (last && config.staff.some(s => s.id === last)) {
+    sel.value = last;
+  }
+  updateSaveEnabled();
+}
+
+function populateLocationSelect() {
+  const sel = document.getElementById("locationSelect");
+  sel.innerHTML = '<option value="">Select a location…</option>' +
+    config.locations.map(l => `<option value="${l.id}">${escapeHtml(l.name)}</option>`).join("");
+}
+
+function populateWorkstationSelect(locationId) {
+  const sel = document.getElementById("workstationSelect");
+  const loc = config.locations.find(l => l.id === locationId);
+  if (!loc) {
+    sel.innerHTML = '<option value="">Select a location first</option>';
+    sel.disabled = true;
+    document.getElementById("extPreview").textContent = "";
+    return;
+  }
+  sel.disabled = false;
+  sel.innerHTML = '<option value="">Select a workstation…</option>' +
+    loc.workstations.map(w => `<option value="${w.id}">${escapeHtml(w.label)} — ext ${escapeHtml(w.extension)}</option>`).join("");
+  document.getElementById("extPreview").textContent = "";
+}
+
+function renderBoard() {
+  const board = document.getElementById("board");
+  document.getElementById("boardTitle").textContent = `${viewShift} shift — who's where`;
+
+  if (!config.locations.length) {
+    board.innerHTML = `<div class="empty-state">No locations have been set up yet. Add them from the <a href="/admin.html">admin page</a>.</div>`;
+    return;
+  }
+
+  // Build workstationId -> staff name lookup for the active shift
+  const shiftAssignments = schedule[viewShift] || {};
+  const staffById = Object.fromEntries(config.staff.map(s => [s.id, s.name]));
+  const wsToName = {};
+  for (const [staffId, assign] of Object.entries(shiftAssignments)) {
+    if (assign.workstationId) {
+      wsToName[assign.workstationId] = staffById[staffId] || "Unknown staff";
+    }
+  }
+
+  board.innerHTML = config.locations.map(loc => `
+    <div class="loc-card">
+      <h3>${escapeHtml(loc.name)}</h3>
+      ${loc.workstations.map(ws => {
+        const name = wsToName[ws.id];
+        return `
+          <div class="ws-row">
+            <div class="ws-meta">
+              <div class="ws-label">${escapeHtml(ws.label)}</div>
+              <div class="ws-person ${name ? "" : "empty"}">${name ? escapeHtml(name) : "Unassigned"}</div>
+            </div>
+            <div class="ext-tag">${escapeHtml(ws.extension)}</div>
+          </div>
+        `;
+      }).join("") || `<div class="ws-row"><div class="ws-person empty">No workstations set up</div></div>`}
+    </div>
+  `).join("");
+}
+
+function updateSaveEnabled() {
+  const staffId = document.getElementById("staffSelect").value;
+  const wsId = document.getElementById("workstationSelect").value;
+  document.getElementById("saveBtn").disabled = !(staffId && wsId);
+}
+
+function showToast(msg, ok) {
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.className = "toast show " + (ok ? "ok" : "err");
+  setTimeout(() => t.classList.remove("show"), 3500);
+}
+
+function escapeHtml(str) {
+  return String(str).replace(/[&<>"']/g, c => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+  }[c]));
+}
+
+// ---- Event wiring ----
+
+document.getElementById("prevDay").onclick = () => { viewDate = addDays(viewDate, -1); refreshDateUI(); loadSchedule(); };
+document.getElementById("nextDay").onclick = () => { viewDate = addDays(viewDate, 1); refreshDateUI(); loadSchedule(); };
+document.getElementById("todayBtn").onclick = () => { viewDate = todayStr(); refreshDateUI(); loadSchedule(); };
+
+function refreshDateUI() {
+  document.getElementById("dateLabel").textContent = formatDateLabel(viewDate);
+}
+
+document.querySelectorAll("#viewShiftSwitch button").forEach(btn => {
+  btn.onclick = () => {
+    document.querySelectorAll("#viewShiftSwitch button").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    viewShift = btn.dataset.val;
+    document.body.dataset.shift = viewShift;
+    renderBoard();
+  };
+});
+
+document.querySelectorAll("#formShiftSwitch button").forEach(btn => {
+  btn.onclick = () => {
+    document.querySelectorAll("#formShiftSwitch button").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    formShift = btn.dataset.val;
+  };
+});
+
+document.getElementById("staffSelect").onchange = updateSaveEnabled;
+
+document.getElementById("locationSelect").onchange = (e) => {
+  populateWorkstationSelect(e.target.value);
+  updateSaveEnabled();
+};
+
+document.getElementById("workstationSelect").onchange = (e) => {
+  const locId = document.getElementById("locationSelect").value;
+  const loc = config.locations.find(l => l.id === locId);
+  const ws = loc && loc.workstations.find(w => w.id === e.target.value);
+  document.getElementById("extPreview").innerHTML = ws
+    ? `Extension: <strong>${escapeHtml(ws.extension)}</strong>`
+    : "";
+  updateSaveEnabled();
+};
+
+document.getElementById("saveBtn").onclick = async () => {
+  const staffId = document.getElementById("staffSelect").value;
+  const locationId = document.getElementById("locationSelect").value;
+  const workstationId = document.getElementById("workstationSelect").value;
+  if (!staffId || !locationId || !workstationId) return;
+
+  localStorage.setItem(LAST_STAFF_KEY, staffId);
+
+  try {
+    const res = await fetch(API_SCHEDULE, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ date: viewDate, shift: formShift, staffId, locationId, workstationId })
+    });
+    if (!res.ok) throw new Error(await res.text());
+    schedule = await res.json();
+    if (formShift === viewShift) renderBoard();
+    showToast("Saved. The board is updated.", true);
+  } catch (err) {
+    showToast("Couldn't save — try again.", false);
+  }
+};
+
+document.getElementById("clearBtn").onclick = async () => {
+  const staffId = document.getElementById("staffSelect").value;
+  if (!staffId) { showToast("Select your name first.", false); return; }
+  try {
+    const res = await fetch(API_SCHEDULE, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ date: viewDate, shift: formShift, staffId, locationId: null })
+    });
+    if (!res.ok) throw new Error(await res.text());
+    schedule = await res.json();
+    if (formShift === viewShift) renderBoard();
+    showToast("Cleared your assignment for that shift.", true);
+  } catch (err) {
+    showToast("Couldn't clear — try again.", false);
+  }
+};
+
+// ---- Init ----
+document.body.dataset.shift = viewShift;
+document.querySelectorAll("#viewShiftSwitch button").forEach(b => b.classList.toggle("active", b.dataset.val === viewShift));
+document.querySelectorAll("#formShiftSwitch button").forEach(b => b.classList.toggle("active", b.dataset.val === formShift));
+refreshDateUI();
+
+(async function init() {
+  await loadConfig();
+  await loadSchedule();
+})();
+
+setInterval(loadSchedule, REFRESH_MS);
+</script>
+</body>
+</html>

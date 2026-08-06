@@ -1,0 +1,9 @@
+{
+  "name": "shift-location-board",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Centralized AM/PM staff shift-location board with phone extensions, hosted on Netlify.",
+  "dependencies": {
+    "@netlify/blobs": "^7.3.0"
+  }
+}
