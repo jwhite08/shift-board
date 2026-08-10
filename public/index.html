@@ -298,6 +298,22 @@
   }
   .view-switch button.active { background: var(--blue); color: #0E141C; }
 
+  .person-search-wrap { display: none; margin-bottom: 14px; }
+  .person-search-wrap.show { display: block; }
+  .person-search-wrap input {
+    width: 100%;
+    max-width: 320px;
+    padding: 9px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--line);
+    background: var(--surface);
+    color: var(--text);
+    font-size: 14px;
+    font-family: inherit;
+  }
+  .person-search-wrap input:focus { outline: none; border-color: var(--blue-border); }
+  .person-search-wrap input::placeholder { color: var(--text-faint); }
+
   .board-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
@@ -519,6 +535,9 @@
       <button data-val="person">By Person</button>
     </div>
   </div>
+  <div class="person-search-wrap" id="personSearchWrap">
+    <input type="text" id="personSearch" placeholder="Search by name…" autocomplete="off" />
+  </div>
   <div class="board-grid" id="board">
     <div class="empty-state">Loading board…</div>
   </div>
@@ -539,6 +558,7 @@ let viewDate = todayStr();
 let viewShift = (new Date().getHours() < 12) ? "AM" : "PM";
 let currentStaffId = "";
 let viewMode = "location";
+let personSearchQuery = "";
 let staffFiltered = [];
 let staffHighlightIndex = -1;
 
@@ -719,7 +739,15 @@ function renderPersonView() {
   }
 
   const { staffAssignment } = computeOccupancy();
-  const sorted = [...config.staff].sort((a, b) => a.name.localeCompare(b.name));
+  const q = personSearchQuery.trim().toLowerCase();
+  const sorted = [...config.staff]
+    .filter(s => !q || s.name.toLowerCase().includes(q))
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  if (!sorted.length) {
+    board.innerHTML = `<div class="empty-state">No staff match "${escapeHtml(personSearchQuery.trim())}".</div>`;
+    return;
+  }
 
   board.innerHTML = sorted.map(s => {
     const isMe = s.id === currentStaffId;
@@ -813,8 +841,18 @@ document.querySelectorAll("#viewModeSwitch button").forEach(btn => {
     document.querySelectorAll("#viewModeSwitch button").forEach(b => b.classList.remove("active"));
     btn.classList.add("active");
     viewMode = btn.dataset.val;
+    document.getElementById("personSearchWrap").classList.toggle("show", viewMode === "person");
+    if (viewMode !== "person") {
+      personSearchQuery = "";
+      document.getElementById("personSearch").value = "";
+    }
     renderBoard();
   };
+});
+
+document.getElementById("personSearch").addEventListener("input", (e) => {
+  personSearchQuery = e.target.value;
+  renderPersonView();
 });
 
 const staffInput = document.getElementById("staffInput");
