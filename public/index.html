@@ -22,6 +22,8 @@
     --cyan: #22B8CE;
     --cyan-soft: rgba(34, 184, 206, 0.16);
     --cyan-border: rgba(34, 184, 206, 0.4);
+    --green: #3DBE78;
+    --green-soft: rgba(61, 190, 120, 0.10);
     --danger: #E5565B;
     --danger-soft: rgba(229, 86, 91, 0.14);
     --radius: 14px;
@@ -246,6 +248,15 @@
     padding: 28px 20px 60px;
   }
 
+  .board-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+  }
+
   .section-title {
     display: flex;
     align-items: center;
@@ -253,7 +264,6 @@
     font-size: 15px;
     font-weight: 700;
     color: var(--text);
-    margin-bottom: 14px;
   }
   .section-title::before {
     content: "";
@@ -265,11 +275,40 @@
     flex-shrink: 0;
   }
 
+  .view-switch {
+    display: flex;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 3px;
+    gap: 3px;
+  }
+  .view-switch button {
+    border: none;
+    background: transparent;
+    padding: 7px 14px;
+    border-radius: 999px;
+    font-weight: 700;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    cursor: pointer;
+    color: var(--text-soft);
+    transition: all 0.15s;
+  }
+  .view-switch button.active { background: var(--blue); color: #0E141C; }
+
   .board-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
     gap: 14px;
     align-items: start;
+  }
+
+  #board.person-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
   }
 
   .loc-card {
@@ -281,22 +320,15 @@
   }
   .loc-card:hover { border-color: var(--blue-border); }
 
-  .loc-card-head {
+  .loc-head {
     width: 100%;
     display: flex;
     align-items: center;
     justify-content: space-between;
     padding: 14px 16px;
-    background: transparent;
-    border: none;
-    cursor: pointer;
-    text-align: left;
   }
-  .loc-card-head:hover { background: rgba(255, 255, 255, 0.03); }
 
   .loc-name { font-size: 15px; font-weight: 700; color: var(--text); }
-
-  .loc-meta { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
 
   .fill-pill {
     font-size: 11px;
@@ -306,9 +338,8 @@
     border: 1px solid var(--line);
     border-radius: 999px;
     padding: 3px 9px;
+    flex-shrink: 0;
   }
-
-  .chevron { color: var(--text-soft); font-size: 13px; width: 14px; text-align: center; }
 
   .ws-list { padding: 10px 16px 14px; border-top: 1px solid var(--line); }
 
@@ -317,10 +348,38 @@
     align-items: center;
     justify-content: space-between;
     gap: 10px;
-    padding: 9px 0;
+    padding: 9px 8px;
+    margin: 0 -8px;
+    border-radius: 8px;
     border-bottom: 1px dashed var(--line);
   }
   .ws-row:last-child { border-bottom: none; }
+  .ws-row.filled { background: var(--green-soft); }
+
+  .person-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 12px 16px;
+    transition: border-color 0.15s;
+  }
+  .person-row.filled { background: var(--green-soft); }
+  .person-row.me { border-color: var(--blue-border); }
+
+  .person-name { font-size: 14px; font-weight: 600; color: var(--text); flex-shrink: 0; }
+
+  .person-status { display: flex; align-items: center; gap: 10px; min-width: 0; }
+  .person-loc {
+    font-size: 12.5px;
+    color: var(--text-soft);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
 
   .ws-meta { min-width: 0; }
 
@@ -444,7 +503,7 @@
     </div>
   </div>
   <div class="you-bar-inner">
-    <label class="you-label" for="staffInput">Staff Member</label>
+    <label class="you-label" for="staffInput">Signed in as</label>
     <div class="staff-combo">
       <input type="text" id="staffInput" placeholder="Type your name…" autocomplete="off" />
       <div class="staff-dropdown" id="staffDropdown"></div>
@@ -453,11 +512,17 @@
 </div>
 
 <main>
-  <div class="section-title" id="boardTitle">AM shift — who's where</div>
+  <div class="board-toolbar">
+    <div class="section-title" id="boardTitle">AM shift — who's where</div>
+    <div class="view-switch" id="viewModeSwitch">
+      <button data-val="location" class="active">By Location</button>
+      <button data-val="person">By Person</button>
+    </div>
+  </div>
   <div class="board-grid" id="board">
     <div class="empty-state">Loading board…</div>
   </div>
-  <div class="footer-note">Tap a location to expand it and sign in to a workstation. Locations, extensions, and staff are managed from the <a href="/admin.html">admin page</a>.</div>
+  <div class="footer-note">Every workstation is shown — tap "Sign in" or "Take over" any time. Locations, extensions, and staff are managed from the <a href="/admin.html">admin page</a>.</div>
 </main>
 
 <div class="toast" id="toast"></div>
@@ -473,7 +538,7 @@ let schedule = { AM: {}, PM: {} };
 let viewDate = todayStr();
 let viewShift = (new Date().getHours() < 12) ? "AM" : "PM";
 let currentStaffId = "";
-let expandedLocations = new Set();
+let viewMode = "location";
 let staffFiltered = [];
 let staffHighlightIndex = -1;
 
@@ -563,68 +628,111 @@ function initStaffField() {
   }
 }
 
+function computeOccupancy() {
+  const shiftAssignments = schedule[viewShift] || {};
+  const staffById = Object.fromEntries(config.staff.map(s => [s.id, s.name]));
+  const wsOccupant = {}; // workstationId -> staffId
+  const staffAssignment = {}; // staffId -> { locationName, wsLabel, ext }
+
+  for (const [staffId, assign] of Object.entries(shiftAssignments)) {
+    if (assign.workstationId) wsOccupant[assign.workstationId] = staffId;
+  }
+  config.locations.forEach(loc => {
+    loc.workstations.forEach(ws => {
+      const staffId = wsOccupant[ws.id];
+      if (staffId) staffAssignment[staffId] = { locationName: loc.name, wsLabel: ws.label, ext: ws.extension };
+    });
+  });
+
+  return { staffById, wsOccupant, staffAssignment };
+}
+
 function renderBoard() {
-  const board = document.getElementById("board");
   document.getElementById("boardTitle").textContent = `${viewShift} shift — who's where`;
+  if (viewMode === "location") renderLocationView();
+  else renderPersonView();
+}
+
+function renderLocationView() {
+  const board = document.getElementById("board");
+  board.className = "board-grid";
 
   if (!config.locations.length) {
     board.innerHTML = `<div class="empty-state">No locations have been set up yet. Add them from the <a href="/admin.html">admin page</a>.</div>`;
     return;
   }
 
-  const shiftAssignments = schedule[viewShift] || {};
-  const staffById = Object.fromEntries(config.staff.map(s => [s.id, s.name]));
-  const wsOccupant = {}; // workstationId -> staffId
-  for (const [staffId, assign] of Object.entries(shiftAssignments)) {
-    if (assign.workstationId) wsOccupant[assign.workstationId] = staffId;
-  }
+  const { staffById, wsOccupant } = computeOccupancy();
 
   board.innerHTML = config.locations.map(loc => {
-    const isExpanded = expandedLocations.has(loc.id);
     const filled = loc.workstations.filter(ws => wsOccupant[ws.id]).length;
 
     return `
       <div class="loc-card" data-loc-id="${loc.id}">
-        <button class="loc-card-head" data-action="toggle-loc">
+        <div class="loc-head">
           <span class="loc-name">${escapeHtml(loc.name)}</span>
-          <span class="loc-meta">
-            <span class="fill-pill">${filled}/${loc.workstations.length}</span>
-            <span class="chevron">${isExpanded ? "▾" : "▸"}</span>
-          </span>
-        </button>
-        ${isExpanded ? `
-          <div class="ws-list">
-            ${loc.workstations.map(ws => {
-              const occupantId = wsOccupant[ws.id];
-              const occupantName = occupantId ? (staffById[occupantId] || "Unknown staff") : null;
-              const isMe = occupantId && occupantId === currentStaffId;
+          <span class="fill-pill">${filled}/${loc.workstations.length}</span>
+        </div>
+        <div class="ws-list">
+          ${loc.workstations.map(ws => {
+            const occupantId = wsOccupant[ws.id];
+            const occupantName = occupantId ? (staffById[occupantId] || "Unknown staff") : null;
+            const isMe = occupantId && occupantId === currentStaffId;
 
-              let actionBtn;
-              if (isMe) {
-                actionBtn = `<button class="chip-btn leave" data-action="leave">Leave</button>`;
-              } else if (occupantName) {
-                actionBtn = `<button class="chip-btn takeover" data-action="sign-in" data-loc-id="${loc.id}" data-ws-id="${ws.id}" data-occupant="${escapeHtml(occupantName)}">Take over</button>`;
-              } else {
-                actionBtn = `<button class="chip-btn signin" data-action="sign-in" data-loc-id="${loc.id}" data-ws-id="${ws.id}" data-occupant="">Sign in</button>`;
-              }
+            let actionBtn;
+            if (isMe) {
+              actionBtn = `<button class="chip-btn leave" data-action="leave">Leave</button>`;
+            } else if (occupantName) {
+              actionBtn = `<button class="chip-btn takeover" data-action="sign-in" data-loc-id="${loc.id}" data-ws-id="${ws.id}" data-occupant="${escapeHtml(occupantName)}">Take over</button>`;
+            } else {
+              actionBtn = `<button class="chip-btn signin" data-action="sign-in" data-loc-id="${loc.id}" data-ws-id="${ws.id}" data-occupant="">Sign in</button>`;
+            }
 
-              return `
-                <div class="ws-row">
-                  <div class="ws-meta">
-                    <div class="ws-label">${escapeHtml(ws.label)}</div>
-                    <div class="ws-person ${occupantName ? "" : "empty"}">${
-                      occupantName ? escapeHtml(occupantName) + (isMe ? '<span class="you-tag">(you)</span>' : "") : "Unassigned"
-                    }</div>
-                  </div>
-                  <div class="ws-actions">
-                    <span class="ext-tag">${escapeHtml(ws.extension)}</span>
-                    ${actionBtn}
-                  </div>
+            return `
+              <div class="ws-row ${occupantName ? "filled" : ""}">
+                <div class="ws-meta">
+                  <div class="ws-label">${escapeHtml(ws.label)}</div>
+                  <div class="ws-person ${occupantName ? "" : "empty"}">${
+                    occupantName ? escapeHtml(occupantName) + (isMe ? '<span class="you-tag">(you)</span>' : "") : "Unassigned"
+                  }</div>
                 </div>
-              `;
-            }).join("") || `<div class="ws-row"><div class="ws-person empty">No workstations set up</div></div>`}
-          </div>
-        ` : ""}
+                <div class="ws-actions">
+                  <span class="ext-tag">${escapeHtml(ws.extension)}</span>
+                  ${actionBtn}
+                </div>
+              </div>
+            `;
+          }).join("") || `<div class="ws-row"><div class="ws-person empty">No workstations set up</div></div>`}
+        </div>
+      </div>
+    `;
+  }).join("");
+}
+
+function renderPersonView() {
+  const board = document.getElementById("board");
+  board.className = "person-list";
+
+  if (!config.staff.length) {
+    board.innerHTML = `<div class="empty-state">No staff have been added yet. Add them from the <a href="/admin.html">admin page</a>.</div>`;
+    return;
+  }
+
+  const { staffAssignment } = computeOccupancy();
+  const sorted = [...config.staff].sort((a, b) => a.name.localeCompare(b.name));
+
+  board.innerHTML = sorted.map(s => {
+    const isMe = s.id === currentStaffId;
+    const a = staffAssignment[s.id];
+    return `
+      <div class="person-row ${a ? "filled" : ""} ${isMe ? "me" : ""}">
+        <div class="person-name">${escapeHtml(s.name)}${isMe ? '<span class="you-tag">(you)</span>' : ""}</div>
+        <div class="person-status">
+          ${a
+            ? `<span class="person-loc">${escapeHtml(a.locationName)} · ${escapeHtml(a.wsLabel)}</span><span class="ext-tag">${escapeHtml(a.ext)}</span>`
+            : `<span class="ws-person empty">Not signed in</span>`
+          }
+        </div>
       </div>
     `;
   }).join("");
@@ -700,6 +808,15 @@ document.querySelectorAll("#viewShiftSwitch button").forEach(btn => {
   };
 });
 
+document.querySelectorAll("#viewModeSwitch button").forEach(btn => {
+  btn.onclick = () => {
+    document.querySelectorAll("#viewModeSwitch button").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    viewMode = btn.dataset.val;
+    renderBoard();
+  };
+});
+
 const staffInput = document.getElementById("staffInput");
 const staffDropdown = document.getElementById("staffDropdown");
 
@@ -759,15 +876,6 @@ staffInput.addEventListener("blur", () => {
 });
 
 document.getElementById("board").addEventListener("click", (e) => {
-  const toggleBtn = e.target.closest('[data-action="toggle-loc"]');
-  if (toggleBtn) {
-    const locId = toggleBtn.closest(".loc-card").dataset.locId;
-    if (expandedLocations.has(locId)) expandedLocations.delete(locId);
-    else expandedLocations.add(locId);
-    renderBoard();
-    return;
-  }
-
   const signInBtn = e.target.closest('[data-action="sign-in"]');
   if (signInBtn) {
     handleSignIn(signInBtn.dataset.locId, signInBtn.dataset.wsId, signInBtn.dataset.occupant || null);
