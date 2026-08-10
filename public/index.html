@@ -189,9 +189,55 @@
     flex-shrink: 0;
   }
 
-  .you-bar-inner select {
-    width: auto;
+  .staff-combo {
+    position: relative;
     min-width: 220px;
+  }
+
+  .staff-combo input {
+    width: 100%;
+    padding: 9px 10px;
+    border-radius: 8px;
+    border: 1px solid var(--line);
+    background: var(--bg);
+    color: var(--text);
+    font-size: 14px;
+    font-family: inherit;
+  }
+  .staff-combo input:focus { outline: none; border-color: var(--blue-border); }
+
+  .staff-dropdown {
+    display: none;
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    max-height: 220px;
+    overflow-y: auto;
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.35);
+    z-index: 20;
+  }
+  .staff-dropdown.show { display: block; }
+
+  .staff-option {
+    padding: 8px 12px;
+    font-size: 13px;
+    color: var(--text);
+    cursor: pointer;
+  }
+  .staff-option:hover, .staff-option.highlighted {
+    background: var(--blue-soft);
+    color: var(--blue-bright);
+  }
+
+  .staff-dropdown .no-match {
+    padding: 8px 12px;
+    font-size: 12.5px;
+    color: var(--text-faint);
+    font-style: italic;
   }
 
   main {
@@ -398,8 +444,11 @@
     </div>
   </div>
   <div class="you-bar-inner">
-    <label class="you-label" for="staffSelect">Signed in as</label>
-    <select id="staffSelect"></select>
+    <label class="you-label" for="staffInput">Signed in as</label>
+    <div class="staff-combo">
+      <input type="text" id="staffInput" placeholder="Type your name…" autocomplete="off" />
+      <div class="staff-dropdown" id="staffDropdown"></div>
+    </div>
   </div>
 </div>
 
@@ -425,6 +474,8 @@ let viewDate = todayStr();
 let viewShift = (new Date().getHours() < 12) ? "AM" : "PM";
 let currentStaffId = "";
 let expandedLocations = new Set();
+let staffFiltered = [];
+let staffHighlightIndex = -1;
 
 function todayStr() {
   const d = new Date();
@@ -447,7 +498,7 @@ function formatDateLabel(dateStr) {
 async function loadConfig() {
   const res = await fetch(API_CONFIG);
   config = await res.json();
-  populateStaffSelect();
+  initStaffField();
 }
 
 async function loadSchedule() {
@@ -456,16 +507,59 @@ async function loadSchedule() {
   renderBoard();
 }
 
-function populateStaffSelect() {
-  const sel = document.getElementById("staffSelect");
-  const sorted = [...config.staff].sort((a,b) => a.name.localeCompare(b.name));
-  sel.innerHTML = '<option value="">Select your name…</option>' +
-    sorted.map(s => `<option value="${s.id}">${escapeHtml(s.name)}</option>`).join("");
+function getStaffName(id) {
+  const s = config.staff.find(s => s.id === id);
+  return s ? s.name : "";
+}
 
+function computeStaffFiltered(query) {
+  const q = query.trim().toLowerCase();
+  const sorted = [...config.staff].sort((a, b) => a.name.localeCompare(b.name));
+  if (!q) return sorted;
+  return sorted.filter(s => s.name.toLowerCase().includes(q));
+}
+
+function renderStaffDropdown() {
+  const dd = document.getElementById("staffDropdown");
+  if (!staffFiltered.length) {
+    dd.innerHTML = `<div class="no-match">No matching staff</div>`;
+    return;
+  }
+  dd.innerHTML = staffFiltered.map((s, i) => `
+    <div class="staff-option ${i === staffHighlightIndex ? "highlighted" : ""}" data-staff-id="${s.id}">${escapeHtml(s.name)}</div>
+  `).join("");
+}
+
+function showStaffDropdown() {
+  staffFiltered = computeStaffFiltered(document.getElementById("staffInput").value);
+  staffHighlightIndex = staffFiltered.findIndex(s => s.id === currentStaffId);
+  renderStaffDropdown();
+  document.getElementById("staffDropdown").classList.add("show");
+}
+
+function hideStaffDropdown() {
+  document.getElementById("staffDropdown").classList.remove("show");
+  staffHighlightIndex = -1;
+}
+
+function commitStaffSelection(staffId) {
+  currentStaffId = staffId;
+  document.getElementById("staffInput").value = getStaffName(staffId);
+  if (staffId) localStorage.setItem(LAST_STAFF_KEY, staffId);
+  else localStorage.removeItem(LAST_STAFF_KEY);
+  hideStaffDropdown();
+  renderBoard();
+}
+
+function revertStaffInput() {
+  document.getElementById("staffInput").value = currentStaffId ? getStaffName(currentStaffId) : "";
+}
+
+function initStaffField() {
   const last = localStorage.getItem(LAST_STAFF_KEY);
   if (last && config.staff.some(s => s.id === last)) {
-    sel.value = last;
     currentStaffId = last;
+    document.getElementById("staffInput").value = getStaffName(last);
   }
 }
 
@@ -606,12 +700,63 @@ document.querySelectorAll("#viewShiftSwitch button").forEach(btn => {
   };
 });
 
-document.getElementById("staffSelect").onchange = (e) => {
-  currentStaffId = e.target.value;
-  if (currentStaffId) localStorage.setItem(LAST_STAFF_KEY, currentStaffId);
-  else localStorage.removeItem(LAST_STAFF_KEY);
-  renderBoard();
-};
+const staffInput = document.getElementById("staffInput");
+const staffDropdown = document.getElementById("staffDropdown");
+
+staffInput.addEventListener("focus", showStaffDropdown);
+
+staffInput.addEventListener("input", () => {
+  staffFiltered = computeStaffFiltered(staffInput.value);
+  staffHighlightIndex = staffFiltered.length ? 0 : -1;
+  renderStaffDropdown();
+  staffDropdown.classList.add("show");
+});
+
+staffInput.addEventListener("keydown", (e) => {
+  if (e.key === "ArrowDown") {
+    e.preventDefault();
+    if (!staffFiltered.length) return;
+    staffHighlightIndex = (staffHighlightIndex + 1) % staffFiltered.length;
+    renderStaffDropdown();
+  } else if (e.key === "ArrowUp") {
+    e.preventDefault();
+    if (!staffFiltered.length) return;
+    staffHighlightIndex = (staffHighlightIndex - 1 + staffFiltered.length) % staffFiltered.length;
+    renderStaffDropdown();
+  } else if (e.key === "Enter") {
+    e.preventDefault();
+    if (staffHighlightIndex >= 0 && staffFiltered[staffHighlightIndex]) {
+      commitStaffSelection(staffFiltered[staffHighlightIndex].id);
+    } else if (staffFiltered.length === 1) {
+      commitStaffSelection(staffFiltered[0].id);
+    }
+  } else if (e.key === "Escape") {
+    revertStaffInput();
+    hideStaffDropdown();
+    staffInput.blur();
+  }
+});
+
+// Use mousedown (not click) so this fires before the input's blur event,
+// which would otherwise hide the dropdown before the selection registers.
+staffDropdown.addEventListener("mousedown", (e) => {
+  const opt = e.target.closest(".staff-option");
+  if (!opt) return;
+  e.preventDefault();
+  commitStaffSelection(opt.dataset.staffId);
+});
+
+staffInput.addEventListener("blur", () => {
+  setTimeout(() => {
+    hideStaffDropdown();
+    const val = staffInput.value.trim();
+    if (val === "" && currentStaffId) {
+      commitStaffSelection("");
+    } else if (val !== (currentStaffId ? getStaffName(currentStaffId) : "")) {
+      revertStaffInput();
+    }
+  }, 120);
+});
 
 document.getElementById("board").addEventListener("click", (e) => {
   const toggleBtn = e.target.closest('[data-action="toggle-loc"]');
