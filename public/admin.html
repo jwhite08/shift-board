@@ -98,6 +98,11 @@
   }
   .btn-sm:hover { color: var(--text); }
   .btn-sm.danger:hover { color: var(--danger); border-color: var(--danger); }
+  .btn-sm:disabled { opacity: 0.3; cursor: not-allowed; }
+  .btn-sm:disabled:hover { color: var(--text-soft); border-color: var(--line); }
+
+  .reorder-btns { display: flex; flex-direction: column; gap: 3px; flex-shrink: 0; }
+  .reorder-btns .btn-sm { padding: 3px 8px; line-height: 1; font-size: 10px; }
 
   .btn-add {
     border: 1px dashed var(--line); background: transparent; border-radius: 8px;
@@ -144,7 +149,7 @@
   <main>
     <div class="card">
       <h2>Office locations & extensions</h2>
-      <div class="sub">Each location can have several workstations. Every workstation has its own phone extension.</div>
+      <div class="sub">Each location can have several workstations. Every workstation has its own phone extension. Use the ▲ ▼ buttons to reorder — this changes the order locations appear on the main board.</div>
       <div id="locationsList"></div>
       <button class="btn-add" id="addLocationBtn">+ Add location</button>
     </div>
@@ -213,9 +218,14 @@ document.getElementById("passcodeInput").addEventListener("keydown", e => {
 
 function renderLocations() {
   const el = document.getElementById("locationsList");
+  const last = config.locations.length - 1;
   el.innerHTML = config.locations.map((loc, li) => `
     <div class="loc-block" data-loc-id="${loc.id}">
       <div class="loc-block-head">
+        <div class="reorder-btns">
+          <button class="btn-sm" data-action="move-up" title="Move up" ${li === 0 ? "disabled" : ""}>▲</button>
+          <button class="btn-sm" data-action="move-down" title="Move down" ${li === last ? "disabled" : ""}>▼</button>
+        </div>
         <input type="text" value="${escapeHtml(loc.name)}" data-role="loc-name" />
         <button class="btn-sm danger" data-action="remove-loc">Remove location</button>
       </div>
@@ -236,6 +246,26 @@ function renderLocations() {
 }
 
 function wireLocationEvents() {
+  document.querySelectorAll('[data-action="move-up"]').forEach(btn => {
+    btn.onclick = (e) => {
+      const block = e.target.closest(".loc-block");
+      const idx = config.locations.findIndex(l => l.id === block.dataset.locId);
+      if (idx > 0) {
+        [config.locations[idx - 1], config.locations[idx]] = [config.locations[idx], config.locations[idx - 1]];
+        renderLocations();
+      }
+    };
+  });
+  document.querySelectorAll('[data-action="move-down"]').forEach(btn => {
+    btn.onclick = (e) => {
+      const block = e.target.closest(".loc-block");
+      const idx = config.locations.findIndex(l => l.id === block.dataset.locId);
+      if (idx < config.locations.length - 1) {
+        [config.locations[idx], config.locations[idx + 1]] = [config.locations[idx + 1], config.locations[idx]];
+        renderLocations();
+      }
+    };
+  });
   document.querySelectorAll('[data-action="remove-loc"]').forEach(btn => {
     btn.onclick = (e) => {
       const block = e.target.closest(".loc-block");
