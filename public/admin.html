@@ -30,6 +30,7 @@
     --blue-border: rgba(46, 143, 224, 0.4);
     --danger: #E5565B;
     --danger-soft: rgba(229, 86, 91, 0.14);
+    --danger-border: rgba(229, 86, 91, 0.4);
     --radius: 14px;
     --shadow: rgba(0, 0, 0, 0.35);
     --brand-glow: rgba(46, 143, 224, 0.35);
@@ -53,6 +54,7 @@
     --blue-border: rgba(46, 143, 224, 0.38);
     --danger: #D6373D;
     --danger-soft: rgba(214, 55, 61, 0.10);
+    --danger-border: rgba(214, 55, 61, 0.35);
     --shadow: rgba(16, 33, 44, 0.14);
     --brand-glow: rgba(46, 143, 224, 0.18);
     --topbar-bg: rgba(255, 255, 255, 0.88);
@@ -174,10 +176,24 @@
   }
   .btn-add:hover { color: var(--blue-bright); border-color: var(--blue-border); }
 
-  .staff-row { display: flex; gap: 8px; margin-bottom: 6px; }
+  .staff-row { display: flex; gap: 8px; margin-bottom: 6px; align-items: center; }
   .staff-row input {
     flex: 1; padding: 8px 10px; border-radius: 6px; border: 1px solid var(--line);
     background: var(--bg); color: var(--text); font-size: 13px;
+  }
+  .staff-row.duplicate input { border-color: var(--danger); }
+  .dup-badge {
+    font-size: 10.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--danger);
+    background: var(--danger-soft);
+    border: 1px solid var(--danger-border);
+    border-radius: 999px;
+    padding: 3px 8px;
+    flex-shrink: 0;
+    white-space: nowrap;
   }
 
   .save-bar {
@@ -223,7 +239,7 @@
 
     <div class="card">
       <h2>Staff</h2>
-      <div class="sub">Names shown in the "set my location" dropdown on the main board.</div>
+      <div class="sub">Names shown in the "set my location" dropdown on the main board. Duplicate names are flagged automatically.</div>
       <div id="staffList"></div>
       <button class="btn-add" id="addStaffBtn">+ Add staff member</button>
     </div>
@@ -410,6 +426,40 @@ document.getElementById("addLocationBtn").onclick = () => {
   renderLocations();
 };
 
+function computeDuplicateStaffIds() {
+  const seen = {};
+  document.querySelectorAll(".staff-row").forEach(row => {
+    const input = row.querySelector('[data-role="staff-name"]');
+    const key = input.value.trim().toLowerCase();
+    if (!key) return;
+    if (!seen[key]) seen[key] = [];
+    seen[key].push(row.dataset.staffId);
+  });
+  const dupIds = new Set();
+  Object.values(seen).forEach(ids => {
+    if (ids.length > 1) ids.forEach(id => dupIds.add(id));
+  });
+  return dupIds;
+}
+
+function refreshDuplicateHighlights() {
+  const dupIds = computeDuplicateStaffIds();
+  document.querySelectorAll(".staff-row").forEach(row => {
+    const isDup = dupIds.has(row.dataset.staffId);
+    row.classList.toggle("duplicate", isDup);
+    const removeBtn = row.querySelector('[data-action="remove-staff"]');
+    let badge = row.querySelector(".dup-badge");
+    if (isDup && !badge) {
+      badge = document.createElement("span");
+      badge.className = "dup-badge";
+      badge.textContent = "Duplicate";
+      row.insertBefore(badge, removeBtn);
+    } else if (!isDup && badge) {
+      badge.remove();
+    }
+  });
+}
+
 function renderStaff() {
   const el = document.getElementById("staffList");
   el.innerHTML = config.staff.map(s => `
@@ -432,7 +482,10 @@ function renderStaff() {
       const s = config.staff.find(s => s.id === row.dataset.staffId);
       s.name = e.target.value;
     };
+    input.addEventListener("input", refreshDuplicateHighlights);
   });
+
+  refreshDuplicateHighlights();
 }
 
 document.getElementById("addStaffBtn").onclick = () => {
@@ -441,6 +494,20 @@ document.getElementById("addStaffBtn").onclick = () => {
 };
 
 document.getElementById("saveAllBtn").onclick = async () => {
+  const dupIds = computeDuplicateStaffIds();
+  if (dupIds.size > 0) {
+    const dupNames = [...new Set(
+      Array.from(document.querySelectorAll(".staff-row"))
+        .filter(row => dupIds.has(row.dataset.staffId))
+        .map(row => row.querySelector('[data-role="staff-name"]').value.trim())
+    )];
+    const proceed = confirm(
+      `These staff names appear more than once:\n\n${dupNames.map(n => "• " + n).join("\n")}\n\n` +
+      `Duplicate names can make it hard to tell staff apart when signing in on the main board. Save anyway?`
+    );
+    if (!proceed) return;
+  }
+
   const pass = sessionStorage.getItem(PASS_KEY);
   const status = document.getElementById("saveStatus");
   status.textContent = "Saving…";
