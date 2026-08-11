@@ -473,7 +473,7 @@ function refreshDuplicateHighlights() {
 
 function renderStaff() {
   const el = document.getElementById("staffList");
-  const roles = ["Provider", "Primary/MA", "Front Office", "Other"];
+  const roles = ["Provider", "Primary/MA", "Front Office", "Floater", "Other"];
   el.innerHTML = (config.staff.length ? `
     <div class="staff-row-header">
       <span>Name</span><span>Email</span><span>Role</span><span></span>
