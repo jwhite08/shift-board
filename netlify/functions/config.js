@@ -62,7 +62,7 @@ export default async (req) => {
   const store = getStore("shift-board");
 
   if (req.method === "GET") {
-    const existing = await store.get(CONFIG_KEY, { type: "json" });
+    const existing = await store.get(CONFIG_KEY, { type: "json", consistency: "strong" });
     return Response.json(existing || DEFAULT_CONFIG);
   }
 
