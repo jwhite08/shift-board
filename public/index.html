@@ -889,10 +889,6 @@ async function handleSignIn(locationId, workstationId, replaceStaffId, occupantN
         await loadSchedule();
         return;
       }
-      if (res.status === 503) {
-        showToast("Board is busy right now — please try again.", false);
-        return;
-      }
       throw new Error(await res.text());
     }
     schedule = await res.json();

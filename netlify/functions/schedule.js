@@ -1,7 +1,6 @@
 import { getStore } from "@netlify/blobs";
 
 const CONFIG_KEY = "config";
-const MAX_WRITE_ATTEMPTS = 6;
 
 function scheduleKey(date) {
   return `schedule-${date}`;
@@ -36,8 +35,6 @@ export default async (req) => {
         status: 400
       });
     }
-    // Strong consistency so a page reload always reflects the very latest
-    // write, rather than a possibly-stale cached copy.
     const existing = await store.get(scheduleKey(date), {
       type: "json",
       consistency: "strong"
@@ -64,79 +61,59 @@ export default async (req) => {
       return new Response("shift must be 'AM' or 'PM'", { status: 400 });
     }
 
-    const key = scheduleKey(date);
-
-    // Netlify Blobs has no built-in locking — concurrent writes to the same
-    // key are last-write-wins. Since every sign-in/leave/take-over for the
-    // whole practice on a given day shares one record, two people acting
-    // within moments of each other can otherwise silently undo one another.
-    // This loop uses conditional (ETag-based) writes to detect that case
-    // and retries against fresh data instead of clobbering it.
-    for (let attempt = 0; attempt < MAX_WRITE_ATTEMPTS; attempt++) {
-      const entry = await store.getWithMetadata(key, {
+    // Fetch config *before* touching the schedule record, so the
+    // read-modify-write below happens as one tight, uninterrupted
+    // sequence with no other network call in the middle of it.
+    let capacity = 1;
+    if (workstationId) {
+      const configData = (await store.get(CONFIG_KEY, {
         type: "json",
         consistency: "strong"
-      });
-      const current = (entry && entry.data) || emptySchedule();
-      const etag = entry ? entry.etag : null;
-      const shiftAssignments = current[shift];
-
-      if (locationId === null || locationId === undefined) {
-        // Clearing this person's assignment for the shift
-        delete shiftAssignments[staffId];
-      } else {
-        if (workstationId) {
-          // If this sign-in is explicitly taking over a specific person's
-          // seat, clear that person's assignment first — but only if
-          // they're actually still the one sitting in that seat (avoids
-          // clobbering someone who has since moved elsewhere).
-          if (
-            replaceStaffId &&
-            shiftAssignments[replaceStaffId] &&
-            shiftAssignments[replaceStaffId].workstationId === workstationId
-          ) {
-            delete shiftAssignments[replaceStaffId];
-          }
-
-          // Capacity check: count how many *other* staff currently occupy
-          // this workstation before allowing the new sign-in.
-          const configData = (await store.get(CONFIG_KEY, {
-            type: "json",
-            consistency: "strong"
-          })) || { locations: [] };
-          const capacity = getWorkstationCapacity(configData, workstationId);
-          const otherOccupants = Object.entries(shiftAssignments).filter(
-            ([sid, a]) => sid !== staffId && a.workstationId === workstationId
-          ).length;
-
-          if (otherOccupants >= capacity) {
-            return new Response("Workstation is full", { status: 409 });
-          }
-        }
-
-        shiftAssignments[staffId] = {
-          locationId,
-          workstationId: workstationId || null
-        };
-      }
-
-      const writeResult = await store.setJSON(
-        key,
-        current,
-        etag ? { onlyIfMatch: etag } : { onlyIfNew: true }
-      );
-
-      if (writeResult && writeResult.modified !== false) {
-        return Response.json(current);
-      }
-      // Someone else wrote to this date's schedule between our read and
-      // write — loop back and retry against the now-current data.
+      })) || { locations: [] };
+      capacity = getWorkstationCapacity(configData, workstationId);
     }
 
-    return new Response(
-      "Board is busy right now — please try again.",
-      { status: 503 }
-    );
+    const key = scheduleKey(date);
+    const current = (await store.get(key, {
+      type: "json",
+      consistency: "strong"
+    })) || emptySchedule();
+    const shiftAssignments = current[shift];
+
+    if (locationId === null || locationId === undefined) {
+      // Clearing this person's assignment for the shift
+      delete shiftAssignments[staffId];
+    } else {
+      if (workstationId) {
+        // If this sign-in is explicitly taking over a specific person's
+        // seat, clear that person's assignment first — but only if
+        // they're actually still the one sitting in that seat (avoids
+        // clobbering someone who has since moved elsewhere).
+        if (
+          replaceStaffId &&
+          shiftAssignments[replaceStaffId] &&
+          shiftAssignments[replaceStaffId].workstationId === workstationId
+        ) {
+          delete shiftAssignments[replaceStaffId];
+        }
+
+        const otherOccupants = Object.entries(shiftAssignments).filter(
+          ([sid, a]) => sid !== staffId && a.workstationId === workstationId
+        ).length;
+
+        if (otherOccupants >= capacity) {
+          return new Response("Workstation is full", { status: 409 });
+        }
+      }
+
+      shiftAssignments[staffId] = {
+        locationId,
+        workstationId: workstationId || null
+      };
+    }
+
+    await store.setJSON(key, current);
+    return Response.json(current);
   }
 
   return new Response("Method not allowed", { status: 405 });
