@@ -12,6 +12,26 @@ Built to run entirely on Netlify:
 
 ---
 
+## Current status (updated as features are added)
+
+**Main board (`index.html`)**
+- Dark navy / electric-blue theme matching the practice's internal IT dashboard branding
+- AM/PM shift toggle + date navigation (prev / today / next)
+- "Signed in as" — searchable text field (autocomplete), remembered per-browser
+- Always-open roster: every workstation at every location is visible at all times; occupied slots get a green tint — no expand/collapse step
+- Inline actions per workstation: **Sign in** (open), **Take over** (occupied, with a confirm prompt), **Leave** (your own slot)
+- **By Location / By Person** toggle — By Person is a read-only, searchable, alphabetical staff directory showing each person's current assignment or "Not signed in"
+
+**Admin page (`admin.html`)**
+- Protected by the `ADMIN_PASSCODE` environment variable
+- Manage locations (each with workstations + extensions), reorderable with ▲▼ buttons — order there sets the order on the main board
+- Manage the staff roster
+- "Save changes" writes everything back via `/api/config`
+
+**Not built / intentionally left out:** a "big screen / lobby TV" display mode, a dense table layout, and an overall shift-coverage summary bar were discussed but not implemented.
+
+---
+
 ## 1. One-time setup
 
 You need:
@@ -74,8 +94,9 @@ page day-to-day, only when a workstation, extension, or staff member changes.
 ## 5. Share the board
 
 Send staff the main URL: `https://YOUR-SITE.netlify.app/`
-No login needed — they pick their name, choose AM or PM, choose their
-location and workstation, and hit Save. Good candidates:
+No login needed — they type/select their name once (it's remembered on
+their device), then tap "Sign in" on any open workstation to claim it, or
+"Take over" if someone needs to move. Good candidates:
 - Pin it as a browser tab/homepage on shared floating workstations
 - Add it to your intranet or a Teams tab
 - Bookmark it on staff phones
