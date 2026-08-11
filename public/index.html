@@ -1158,6 +1158,7 @@ document.getElementById("themeToggle").onclick = () => {
 applyTheme(currentTheme());
 
 // ---- Init ----
+document.querySelectorAll("#viewShiftSwitch button").forEach(b => b.classList.toggle("active", b.dataset.val === viewShift));
 refreshDateUI();
 
 (async function init() {
