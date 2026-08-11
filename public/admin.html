@@ -4,10 +4,19 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Admin — Shift Board</title>
+<script>
+  // Apply saved theme before first paint to avoid a flash of the wrong theme.
+  (function () {
+    if (localStorage.getItem("shiftboard:theme") === "light") {
+      document.documentElement.setAttribute("data-theme", "light");
+    }
+  })();
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
 <style>
   :root {
+    color-scheme: dark;
     --bg: #0E141C;
     --surface: #171F29;
     --surface-2: #1D2733;
@@ -22,21 +31,50 @@
     --danger: #E5565B;
     --danger-soft: rgba(229, 86, 91, 0.14);
     --radius: 14px;
+    --shadow: rgba(0, 0, 0, 0.35);
+    --brand-glow: rgba(46, 143, 224, 0.35);
+    --topbar-bg: rgba(23, 31, 41, 0.9);
+    --body-grad-1: #1B2733;
+    --body-grad-2: #0E141C;
   }
+
+  :root[data-theme="light"] {
+    color-scheme: light;
+    --bg: #F3F6FA;
+    --surface: #FFFFFF;
+    --surface-2: #EAF0F6;
+    --line: #D6DEE7;
+    --text: #16212C;
+    --text-soft: #56636F;
+    --text-faint: #8A97A3;
+    --blue: #2E8FE0;
+    --blue-bright: #1C6FC0;
+    --blue-soft: rgba(46, 143, 224, 0.12);
+    --blue-border: rgba(46, 143, 224, 0.38);
+    --danger: #D6373D;
+    --danger-soft: rgba(214, 55, 61, 0.10);
+    --shadow: rgba(16, 33, 44, 0.14);
+    --brand-glow: rgba(46, 143, 224, 0.18);
+    --topbar-bg: rgba(255, 255, 255, 0.88);
+    --body-grad-1: #FFFFFF;
+    --body-grad-2: #F3F6FA;
+  }
+
   * { box-sizing: border-box; }
   html, body {
     margin: 0; background: var(--bg); color: var(--text);
     font-family: 'Inter', system-ui, sans-serif;
+    transition: background 0.15s, color 0.15s;
   }
   body {
-    background: radial-gradient(1100px 550px at 50% -8%, #1B2733 0%, #0E141C 55%);
+    background: radial-gradient(1100px 550px at 50% -8%, var(--body-grad-1) 0%, var(--body-grad-2) 55%);
     min-height: 100vh;
   }
   h1, h2 { font-family: 'Space Grotesk', sans-serif; margin: 0; }
   a { color: var(--blue-bright); }
 
   .topbar {
-    background: rgba(23, 31, 41, 0.9);
+    background: var(--topbar-bg);
     backdrop-filter: blur(8px);
     border-bottom: 1px solid var(--line);
     padding: 18px 20px;
@@ -44,8 +82,25 @@
   .topbar-inner {
     max-width: 900px; margin: 0 auto; display: flex; justify-content: space-between; align-items: baseline;
   }
-  .topbar h1 { font-size: 20px; color: var(--blue-bright); text-shadow: 0 0 18px rgba(46,143,224,0.35); }
+  .topbar h1 { font-size: 20px; color: var(--blue-bright); text-shadow: 0 0 18px var(--brand-glow); }
   .topbar a { font-size: 13px; font-weight: 600; }
+
+  .theme-toggle {
+    border: 1px solid var(--line);
+    background: var(--surface);
+    border-radius: 8px;
+    width: 32px;
+    height: 32px;
+    cursor: pointer;
+    font-size: 15px;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: background 0.15s, border-color 0.15s;
+  }
+  .theme-toggle:hover { background: var(--surface-2); border-color: var(--blue-border); }
 
   main { max-width: 900px; margin: 0 auto; padding: 28px 20px 80px; }
 
@@ -142,7 +197,10 @@
   <div class="topbar">
     <div class="topbar-inner">
       <h1>Shift Board Admin</h1>
-      <a href="/">← Back to board</a>
+      <div style="display:flex; align-items:center; gap:14px;">
+        <button class="theme-toggle" id="themeToggle" title="Toggle light/dark theme">☀️</button>
+        <a href="/">← Back to board</a>
+      </div>
     </div>
   </div>
 
@@ -371,6 +429,26 @@ document.getElementById("saveAllBtn").onclick = async () => {
     status.textContent = "Save failed — check your connection and try again.";
   }
 };
+
+// ---- Theme toggle ----
+const THEME_KEY = "shiftboard:theme";
+
+function currentTheme() {
+  return document.documentElement.getAttribute("data-theme") === "light" ? "light" : "dark";
+}
+
+function applyTheme(theme) {
+  if (theme === "light") document.documentElement.setAttribute("data-theme", "light");
+  else document.documentElement.removeAttribute("data-theme");
+  localStorage.setItem(THEME_KEY, theme);
+  document.getElementById("themeToggle").textContent = theme === "light" ? "🌙" : "☀️";
+}
+
+document.getElementById("themeToggle").onclick = () => {
+  applyTheme(currentTheme() === "light" ? "dark" : "light");
+};
+
+applyTheme(currentTheme());
 
 // Auto-unlock if passcode already verified this session
 (async function init() {
