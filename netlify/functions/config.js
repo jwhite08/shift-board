@@ -10,17 +10,17 @@ const DEFAULT_CONFIG = {
       id: "loc-example-1",
       name: "EXAMPLE — Main Street Office",
       workstations: [
-        { id: "ws-1", label: "Front Desk 1", extension: "1001" },
-        { id: "ws-2", label: "Nurse Station", extension: "1002" },
-        { id: "ws-3", label: "Provider Office A", extension: "1003" }
+        { id: "ws-1", label: "Front Desk 1", extension: "1001", capacity: 1 },
+        { id: "ws-2", label: "Nurse Station", extension: "1002", capacity: 1 },
+        { id: "ws-3", label: "Provider Pod A", extension: "1003", capacity: 2 }
       ]
     },
     {
       id: "loc-example-2",
       name: "EXAMPLE — Endoscopy Center",
       workstations: [
-        { id: "ws-4", label: "Front Desk", extension: "2001" },
-        { id: "ws-5", label: "Pre-Op Bay 1", extension: "2002" }
+        { id: "ws-4", label: "Front Desk", extension: "2001", capacity: 1 },
+        { id: "ws-5", label: "Pre-Op Bay 1", extension: "2002", capacity: 1 }
       ]
     }
   ],
@@ -28,6 +28,28 @@ const DEFAULT_CONFIG = {
     { id: "staff-example-1", name: "Example Staff Member" }
   ]
 };
+
+function sanitizeCapacity(value) {
+  const n = parseInt(value, 10);
+  if (!Number.isFinite(n) || n < 1) return 1;
+  if (n > 4) return 4;
+  return n;
+}
+
+function sanitizeConfig(body) {
+  return {
+    locations: body.locations.map((loc) => ({
+      ...loc,
+      workstations: Array.isArray(loc.workstations)
+        ? loc.workstations.map((ws) => ({
+            ...ws,
+            capacity: sanitizeCapacity(ws.capacity)
+          }))
+        : []
+    })),
+    staff: body.staff
+  };
+}
 
 function unauthorized() {
   return new Response("Unauthorized", {
@@ -65,7 +87,7 @@ export default async (req) => {
       );
     }
 
-    await store.setJSON(CONFIG_KEY, body);
+    await store.setJSON(CONFIG_KEY, sanitizeConfig(body));
     return Response.json({ ok: true });
   }
 

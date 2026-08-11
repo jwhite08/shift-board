@@ -460,6 +460,15 @@
 
   .ws-label { font-size: 12px; color: var(--text-soft); font-weight: 500; }
 
+  .seat-tag {
+    font-size: 10px;
+    color: var(--text-faint);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-left: 4px;
+  }
+
   .ws-person {
     font-size: 14px;
     font-weight: 600;
@@ -711,20 +720,24 @@ function initStaffField() {
 function computeOccupancy() {
   const shiftAssignments = schedule[viewShift] || {};
   const staffById = Object.fromEntries(config.staff.map(s => [s.id, s.name]));
-  const wsOccupant = {}; // workstationId -> staffId
+  const wsOccupants = {}; // workstationId -> [staffId, staffId, ...]
   const staffAssignment = {}; // staffId -> { locationName, wsLabel, ext }
 
   for (const [staffId, assign] of Object.entries(shiftAssignments)) {
-    if (assign.workstationId) wsOccupant[assign.workstationId] = staffId;
+    if (assign.workstationId) {
+      if (!wsOccupants[assign.workstationId]) wsOccupants[assign.workstationId] = [];
+      wsOccupants[assign.workstationId].push(staffId);
+    }
   }
   config.locations.forEach(loc => {
     loc.workstations.forEach(ws => {
-      const staffId = wsOccupant[ws.id];
-      if (staffId) staffAssignment[staffId] = { locationName: loc.name, wsLabel: ws.label, ext: ws.extension };
+      (wsOccupants[ws.id] || []).forEach(staffId => {
+        staffAssignment[staffId] = { locationName: loc.name, wsLabel: ws.label, ext: ws.extension };
+      });
     });
   });
 
-  return { staffById, wsOccupant, staffAssignment };
+  return { staffById, wsOccupants, staffAssignment };
 }
 
 function renderBoard() {
@@ -742,51 +755,70 @@ function renderLocationView() {
     return;
   }
 
-  const { staffById, wsOccupant } = computeOccupancy();
+  const { staffById, wsOccupants } = computeOccupancy();
 
   board.innerHTML = config.locations.map(loc => {
-    const filled = loc.workstations.filter(ws => wsOccupant[ws.id]).length;
+    let totalSeats = 0;
+    let filledSeats = 0;
+    loc.workstations.forEach(ws => {
+      const cap = ws.capacity || 1;
+      totalSeats += cap;
+      filledSeats += Math.min((wsOccupants[ws.id] || []).length, cap);
+    });
 
     return `
       <div class="loc-card" data-loc-id="${loc.id}">
         <div class="loc-head">
           <span class="loc-name">${escapeHtml(loc.name)}</span>
-          <span class="fill-pill">${filled}/${loc.workstations.length}</span>
+          <span class="fill-pill">${filledSeats}/${totalSeats}</span>
         </div>
         <div class="ws-list">
-          ${loc.workstations.map(ws => {
-            const occupantId = wsOccupant[ws.id];
-            const occupantName = occupantId ? (staffById[occupantId] || "Unknown staff") : null;
-            const isMe = occupantId && occupantId === currentStaffId;
-
-            let actionBtn;
-            if (isMe) {
-              actionBtn = `<button class="chip-btn leave" data-action="leave">Leave</button>`;
-            } else if (occupantName) {
-              actionBtn = `<button class="chip-btn takeover" data-action="sign-in" data-loc-id="${loc.id}" data-ws-id="${ws.id}" data-occupant="${escapeHtml(occupantName)}">Take over</button>`;
-            } else {
-              actionBtn = `<button class="chip-btn signin" data-action="sign-in" data-loc-id="${loc.id}" data-ws-id="${ws.id}" data-occupant="">Sign in</button>`;
-            }
-
-            return `
-              <div class="ws-row ${occupantName ? "filled" : ""}">
-                <div class="ws-meta">
-                  <div class="ws-label">${escapeHtml(ws.label)}</div>
-                  <div class="ws-person ${occupantName ? "" : "empty"}">${
-                    occupantName ? escapeHtml(occupantName) + (isMe ? '<span class="you-tag">(you)</span>' : "") : "Unassigned"
-                  }</div>
-                </div>
-                <div class="ws-actions">
-                  <span class="ext-tag">${escapeHtml(ws.extension)}</span>
-                  ${actionBtn}
-                </div>
-              </div>
-            `;
-          }).join("") || `<div class="ws-row"><div class="ws-person empty">No workstations set up</div></div>`}
+          ${loc.workstations.map(ws => renderWorkstationSeats(loc, ws, wsOccupants[ws.id] || [], staffById)).join("") || `<div class="ws-row"><div class="ws-person empty">No workstations set up</div></div>`}
         </div>
       </div>
     `;
   }).join("");
+}
+
+function renderWorkstationSeats(loc, ws, occupantIds, staffById) {
+  const capacity = ws.capacity || 1;
+  const rows = [];
+
+  for (let i = 0; i < capacity; i++) {
+    const occupantId = occupantIds[i] || null;
+    const occupantName = occupantId ? (staffById[occupantId] || "Unknown staff") : null;
+    const isMe = occupantId && occupantId === currentStaffId;
+
+    let actionBtn;
+    if (isMe) {
+      actionBtn = `<button class="chip-btn leave" data-action="leave">Leave</button>`;
+    } else if (occupantName) {
+      actionBtn = `<button class="chip-btn takeover" data-action="sign-in" data-loc-id="${loc.id}" data-ws-id="${ws.id}" data-replace-id="${occupantId}" data-occupant="${escapeHtml(occupantName)}">Take over</button>`;
+    } else {
+      actionBtn = `<button class="chip-btn signin" data-action="sign-in" data-loc-id="${loc.id}" data-ws-id="${ws.id}" data-replace-id="" data-occupant="">Sign in</button>`;
+    }
+
+    const labelHtml = capacity > 1
+      ? `${escapeHtml(ws.label)} <span class="seat-tag">Seat ${i + 1}/${capacity}</span>`
+      : escapeHtml(ws.label);
+
+    rows.push(`
+      <div class="ws-row ${occupantName ? "filled" : ""}">
+        <div class="ws-meta">
+          <div class="ws-label">${labelHtml}</div>
+          <div class="ws-person ${occupantName ? "" : "empty"}">${
+            occupantName ? escapeHtml(occupantName) + (isMe ? '<span class="you-tag">(you)</span>' : "") : "Unassigned"
+          }</div>
+        </div>
+        <div class="ws-actions">
+          <span class="ext-tag">${escapeHtml(ws.extension)}</span>
+          ${actionBtn}
+        </div>
+      </div>
+    `);
+  }
+
+  return rows.join("");
 }
 
 function renderPersonView() {
@@ -839,7 +871,7 @@ function escapeHtml(str) {
   }[c]));
 }
 
-async function handleSignIn(locationId, workstationId, occupantName) {
+async function handleSignIn(locationId, workstationId, replaceStaffId, occupantName) {
   if (!currentStaffId) { showToast("Select your name up top first.", false); return; }
   if (occupantName) {
     const ok = confirm(`This will move ${occupantName} out of this workstation. Continue?`);
@@ -849,9 +881,16 @@ async function handleSignIn(locationId, workstationId, occupantName) {
     const res = await fetch(API_SCHEDULE, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ date: viewDate, shift: viewShift, staffId: currentStaffId, locationId, workstationId })
+      body: JSON.stringify({ date: viewDate, shift: viewShift, staffId: currentStaffId, locationId, workstationId, replaceStaffId: replaceStaffId || null })
     });
-    if (!res.ok) throw new Error(await res.text());
+    if (!res.ok) {
+      if (res.status === 409) {
+        showToast("That seat was just taken — refreshing the board.", false);
+        await loadSchedule();
+        return;
+      }
+      throw new Error(await res.text());
+    }
     schedule = await res.json();
     renderBoard();
     showToast("Signed in.", true);
@@ -976,7 +1015,7 @@ staffInput.addEventListener("blur", () => {
 document.getElementById("board").addEventListener("click", (e) => {
   const signInBtn = e.target.closest('[data-action="sign-in"]');
   if (signInBtn) {
-    handleSignIn(signInBtn.dataset.locId, signInBtn.dataset.wsId, signInBtn.dataset.occupant || null);
+    handleSignIn(signInBtn.dataset.locId, signInBtn.dataset.wsId, signInBtn.dataset.replaceId || null, signInBtn.dataset.occupant || null);
     return;
   }
 

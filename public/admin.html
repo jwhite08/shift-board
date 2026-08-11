@@ -139,13 +139,22 @@
     background: var(--bg); color: var(--text); font-weight: 600; font-size: 14px;
   }
 
-  .ws-line { display: flex; gap: 8px; margin-bottom: 6px; }
+  .ws-line { display: flex; gap: 8px; margin-bottom: 6px; align-items: center; }
   .ws-line input:nth-child(1) { flex: 2; }
   .ws-line input:nth-child(2) { flex: 1; font-family: 'IBM Plex Mono', monospace; }
+  .ws-line input:nth-child(3) { flex: 0 0 58px; text-align: center; }
   .ws-line input {
     padding: 7px 9px; border-radius: 6px; border: 1px solid var(--line);
     background: var(--bg); color: var(--text); font-size: 13px;
   }
+  .ws-line-header {
+    display: flex; gap: 8px; margin-bottom: 4px; font-size: 11px;
+    color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.03em;
+  }
+  .ws-line-header span:nth-child(1) { flex: 2; }
+  .ws-line-header span:nth-child(2) { flex: 1; }
+  .ws-line-header span:nth-child(3) { flex: 0 0 58px; text-align: center; }
+  .ws-line-header span:nth-child(4) { flex: 0 0 26px; }
 
   .btn-sm {
     border: 1px solid var(--line); background: var(--surface); border-radius: 6px;
@@ -207,7 +216,7 @@
   <main>
     <div class="card">
       <h2>Office locations & extensions</h2>
-      <div class="sub">Each location can have several workstations. Every workstation has its own phone extension. Use the ▲ ▼ buttons to reorder — this changes the order locations appear on the main board.</div>
+      <div class="sub">Each location can have several workstations. Every workstation has its own phone extension and a seat count — set Seats to 2+ for shared pods (e.g. a provider + their primary). Use the ▲ ▼ buttons to reorder — this changes the order locations appear on the main board.</div>
       <div id="locationsList"></div>
       <button class="btn-add" id="addLocationBtn">+ Add location</button>
     </div>
@@ -288,10 +297,16 @@ function renderLocations() {
         <button class="btn-sm danger" data-action="remove-loc">Remove location</button>
       </div>
       <div data-role="ws-list">
+        ${loc.workstations.length ? `
+          <div class="ws-line-header">
+            <span>Label</span><span>Ext</span><span>Seats</span><span></span>
+          </div>
+        ` : ""}
         ${loc.workstations.map(ws => `
           <div class="ws-line" data-ws-id="${ws.id}">
             <input type="text" value="${escapeHtml(ws.label)}" placeholder="Workstation label" data-role="ws-label" />
             <input type="text" value="${escapeHtml(ws.extension)}" placeholder="Ext" data-role="ws-ext" />
+            <input type="number" min="1" max="4" value="${ws.capacity || 1}" title="Number of staff who can be signed in here at once" data-role="ws-capacity" />
             <button class="btn-sm danger" data-action="remove-ws">✕</button>
           </div>
         `).join("")}
@@ -337,7 +352,7 @@ function wireLocationEvents() {
       const block = e.target.closest(".loc-block");
       const id = block.dataset.locId;
       const loc = config.locations.find(l => l.id === id);
-      loc.workstations.push({ id: uid("ws"), label: "", extension: "" });
+      loc.workstations.push({ id: uid("ws"), label: "", extension: "", capacity: 1 });
       renderLocations();
     };
   });
@@ -373,6 +388,19 @@ function wireLocationEvents() {
       const loc = config.locations.find(l => l.id === block.dataset.locId);
       const ws = loc.workstations.find(w => w.id === line.dataset.wsId);
       ws.extension = e.target.value;
+    };
+  });
+  document.querySelectorAll('[data-role="ws-capacity"]').forEach(input => {
+    input.onchange = (e) => {
+      const line = e.target.closest(".ws-line");
+      const block = e.target.closest(".loc-block");
+      const loc = config.locations.find(l => l.id === block.dataset.locId);
+      const ws = loc.workstations.find(w => w.id === line.dataset.wsId);
+      let n = parseInt(e.target.value, 10);
+      if (!Number.isFinite(n) || n < 1) n = 1;
+      if (n > 4) n = 4;
+      ws.capacity = n;
+      e.target.value = n;
     };
   });
 }
