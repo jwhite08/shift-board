@@ -238,6 +238,7 @@
     display: flex;
     align-items: center;
     gap: 10px;
+    flex-wrap: wrap;
     border-top: 1px solid var(--line);
   }
 
@@ -299,6 +300,28 @@
     font-size: 12.5px;
     color: var(--text-faint);
     font-style: italic;
+  }
+
+  .same-as-am-wrap { display: none; }
+  .same-as-am-wrap.show { display: block; }
+  .same-as-am-btn {
+    border: 1px dashed var(--blue-border);
+    background: var(--blue-soft);
+    color: var(--blue-bright);
+    border-radius: 999px;
+    padding: 7px 14px;
+    font-size: 12.5px;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
+  }
+  .same-as-am-btn:hover {
+    background: var(--blue);
+    color: #0E141C;
+    border-color: var(--blue);
+    border-style: solid;
   }
 
   main {
@@ -593,6 +616,7 @@
       <input type="text" id="staffInput" placeholder="Type your name…" autocomplete="off" />
       <div class="staff-dropdown" id="staffDropdown"></div>
     </div>
+    <div class="same-as-am-wrap" id="sameAsAmWrap"></div>
   </div>
 </div>
 
@@ -742,8 +766,79 @@ function computeOccupancy() {
 
 function renderBoard() {
   document.getElementById("boardTitle").textContent = `${viewShift} shift — who's where`;
+  renderSameAsAmButton();
   if (viewMode === "location") renderLocationView();
   else renderPersonView();
+}
+
+function findWorkstationById(workstationId) {
+  for (const loc of config.locations) {
+    const ws = loc.workstations.find(w => w.id === workstationId);
+    if (ws) return ws;
+  }
+  return null;
+}
+
+function getAmAssignmentForCurrentStaff() {
+  if (!currentStaffId) return null;
+  const assign = (schedule.AM || {})[currentStaffId];
+  if (!assign || !assign.workstationId) return null;
+  for (const loc of config.locations) {
+    const ws = loc.workstations.find(w => w.id === assign.workstationId);
+    if (ws) {
+      return { locationId: loc.id, workstationId: ws.id, locationName: loc.name, wsLabel: ws.label };
+    }
+  }
+  return null; // that workstation may since have been removed
+}
+
+// Self-service "Same as AM" quick action: only shown while viewing the PM
+// board, when the signed-in person had an AM assignment, and only if
+// they aren't already sitting in that same spot for PM.
+function renderSameAsAmButton() {
+  const wrap = document.getElementById("sameAsAmWrap");
+
+  if (viewShift !== "PM" || !currentStaffId) {
+    wrap.classList.remove("show");
+    wrap.innerHTML = "";
+    return;
+  }
+
+  const amAssign = getAmAssignmentForCurrentStaff();
+  if (!amAssign) {
+    wrap.classList.remove("show");
+    wrap.innerHTML = "";
+    return;
+  }
+
+  const pmAssign = (schedule.PM || {})[currentStaffId];
+  if (pmAssign && pmAssign.workstationId === amAssign.workstationId) {
+    wrap.classList.remove("show");
+    wrap.innerHTML = "";
+    return;
+  }
+
+  wrap.innerHTML = `
+    <button class="same-as-am-btn" id="sameAsAmBtn" type="button">
+      ⇄ Same as AM — ${escapeHtml(amAssign.locationName)} · ${escapeHtml(amAssign.wsLabel)}
+    </button>
+  `;
+  wrap.classList.add("show");
+
+  document.getElementById("sameAsAmBtn").onclick = () => {
+    const { staffById, wsOccupants } = computeOccupancy();
+    const ws = findWorkstationById(amAssign.workstationId);
+    const capacity = ws ? (ws.capacity || 1) : 1;
+    const occupantIds = (wsOccupants[amAssign.workstationId] || []).filter(id => id !== currentStaffId);
+
+    if (occupantIds.length < capacity) {
+      handleSignIn(amAssign.locationId, amAssign.workstationId, null, null);
+    } else {
+      const replaceId = occupantIds[0];
+      const replaceName = staffById[replaceId] || "Unknown staff";
+      handleSignIn(amAssign.locationId, amAssign.workstationId, replaceId, replaceName);
+    }
+  };
 }
 
 function renderLocationView() {
