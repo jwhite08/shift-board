@@ -177,11 +177,22 @@
   .btn-add:hover { color: var(--blue-bright); border-color: var(--blue-border); }
 
   .staff-row { display: flex; gap: 8px; margin-bottom: 6px; align-items: center; }
-  .staff-row input {
-    flex: 1; padding: 8px 10px; border-radius: 6px; border: 1px solid var(--line);
-    background: var(--bg); color: var(--text); font-size: 13px;
+  .staff-row input, .staff-row select {
+    padding: 8px 10px; border-radius: 6px; border: 1px solid var(--line);
+    background: var(--bg); color: var(--text); font-size: 13px; font-family: inherit;
   }
-  .staff-row.duplicate input { border-color: var(--danger); }
+  .staff-row input[data-role="staff-name"] { flex: 2; }
+  .staff-row input[data-role="staff-email"] { flex: 3; }
+  .staff-row select[data-role="staff-role"] { flex: 0 0 130px; }
+  .staff-row.duplicate input[data-role="staff-name"] { border-color: var(--danger); }
+  .staff-row-header {
+    display: flex; gap: 8px; margin-bottom: 4px; font-size: 11px;
+    color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.03em;
+  }
+  .staff-row-header span:nth-child(1) { flex: 2; }
+  .staff-row-header span:nth-child(2) { flex: 3; }
+  .staff-row-header span:nth-child(3) { flex: 0 0 130px; }
+  .staff-row-header span:nth-child(4) { flex: 0 0 26px; }
   .dup-badge {
     font-size: 10.5px;
     font-weight: 700;
@@ -239,7 +250,7 @@
 
     <div class="card">
       <h2>Staff</h2>
-      <div class="sub">Names shown in the "set my location" dropdown on the main board. Duplicate names are flagged automatically.</div>
+      <div class="sub">Names shown in the "set my location" dropdown on the main board. Duplicate names are flagged automatically. Email and role are used for schedule notifications (coming soon) — both are optional for now.</div>
       <div id="staffList"></div>
       <button class="btn-add" id="addStaffBtn">+ Add staff member</button>
     </div>
@@ -462,12 +473,24 @@ function refreshDuplicateHighlights() {
 
 function renderStaff() {
   const el = document.getElementById("staffList");
-  el.innerHTML = config.staff.map(s => `
+  const roles = ["Provider", "Primary/MA", "Front Office", "Other"];
+  el.innerHTML = (config.staff.length ? `
+    <div class="staff-row-header">
+      <span>Name</span><span>Email</span><span>Role</span><span></span>
+    </div>
+  ` : "") + (config.staff.map(s => {
+    const role = roles.includes(s.role) ? s.role : "Other";
+    return `
     <div class="staff-row" data-staff-id="${s.id}">
-      <input type="text" value="${escapeHtml(s.name)}" data-role="staff-name" />
+      <input type="text" value="${escapeHtml(s.name)}" placeholder="Full name" data-role="staff-name" />
+      <input type="email" value="${escapeHtml(s.email || "")}" placeholder="name@gastroassociates.com" data-role="staff-email" />
+      <select data-role="staff-role">
+        ${roles.map(r => `<option value="${r}" ${r === role ? "selected" : ""}>${r}</option>`).join("")}
+      </select>
       <button class="btn-sm danger" data-action="remove-staff">✕</button>
     </div>
-  `).join("") || `<p style="color:var(--text-soft); font-size:13px;">No staff yet — add one below.</p>`;
+  `;
+  }).join("")) || `<p style="color:var(--text-soft); font-size:13px;">No staff yet — add one below.</p>`;
 
   document.querySelectorAll('[data-action="remove-staff"]').forEach(btn => {
     btn.onclick = (e) => {
@@ -484,12 +507,26 @@ function renderStaff() {
     };
     input.addEventListener("input", refreshDuplicateHighlights);
   });
+  document.querySelectorAll('[data-role="staff-email"]').forEach(input => {
+    input.onchange = (e) => {
+      const row = e.target.closest(".staff-row");
+      const s = config.staff.find(s => s.id === row.dataset.staffId);
+      s.email = e.target.value;
+    };
+  });
+  document.querySelectorAll('[data-role="staff-role"]').forEach(select => {
+    select.onchange = (e) => {
+      const row = e.target.closest(".staff-row");
+      const s = config.staff.find(s => s.id === row.dataset.staffId);
+      s.role = e.target.value;
+    };
+  });
 
   refreshDuplicateHighlights();
 }
 
 document.getElementById("addStaffBtn").onclick = () => {
-  config.staff.push({ id: uid("staff"), name: "" });
+  config.staff.push({ id: uid("staff"), name: "", email: "", role: "Other" });
   renderStaff();
 };
 

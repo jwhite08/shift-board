@@ -36,6 +36,23 @@ function sanitizeCapacity(value) {
   return n;
 }
 
+const VALID_ROLES = ["Provider", "Primary/MA", "Front Office", "Other"];
+
+function sanitizeRole(value) {
+  return VALID_ROLES.includes(value) ? value : "Other";
+}
+
+// Lightweight, lenient email validation — we only reject clearly-malformed
+// values, allowing blank (not everyone will have an email on file yet).
+// The real deliverability check happens when mail is actually sent later.
+function sanitizeEmail(value) {
+  if (typeof value !== "string") return "";
+  const trimmed = value.trim();
+  if (trimmed === "") return "";
+  const looksValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed);
+  return looksValid ? trimmed : "";
+}
+
 function sanitizeConfig(body) {
   return {
     locations: body.locations.map((loc) => ({
@@ -47,7 +64,11 @@ function sanitizeConfig(body) {
           }))
         : []
     })),
-    staff: body.staff
+    staff: body.staff.map((s) => ({
+      ...s,
+      email: sanitizeEmail(s.email),
+      role: sanitizeRole(s.role)
+    }))
   };
 }
 
