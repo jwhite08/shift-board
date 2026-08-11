@@ -648,7 +648,23 @@ const LAST_STAFF_KEY = "shiftboard:lastStaffId";
 let config = { locations: [], staff: [] };
 let schedule = { AM: {}, PM: {} };
 let viewDate = todayStr();
-let viewShift = (new Date().getHours() < 12) ? "AM" : "PM";
+// Default the shift toggle to AM/PM based on Eastern time specifically
+// (all offices are North America EST/EDT), not the viewing device's local
+// clock — this keeps it correct even if a phone or kiosk is set to a
+// different timezone. Automatically accounts for the EST/EDT switch.
+function currentShiftByEasternTime() {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    hour: "numeric",
+    hour12: false,
+    timeZone: "America/New_York"
+  }).formatToParts(new Date());
+  const hourPart = parts.find(p => p.type === "hour");
+  let hour = hourPart ? parseInt(hourPart.value, 10) : new Date().getHours();
+  hour = hour % 24; // some browsers report midnight as "24" with hour12:false
+  return hour < 12 ? "AM" : "PM";
+}
+
+let viewShift = currentShiftByEasternTime();
 let currentStaffId = "";
 let viewMode = "location";
 let personSearchQuery = "";
