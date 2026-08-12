@@ -142,9 +142,10 @@
   }
 
   .ws-line { display: flex; gap: 8px; margin-bottom: 6px; align-items: center; }
-  .ws-line input:nth-child(1) { flex: 2; }
-  .ws-line input:nth-child(2) { flex: 1; font-family: 'IBM Plex Mono', monospace; }
-  .ws-line input:nth-child(3) { flex: 0 0 58px; text-align: center; }
+  .ws-reorder-col { flex: 0 0 34px; }
+  .ws-line input[data-role="ws-label"] { flex: 2; }
+  .ws-line input[data-role="ws-ext"] { flex: 1; font-family: 'IBM Plex Mono', monospace; }
+  .ws-line input[data-role="ws-capacity"] { flex: 0 0 58px; text-align: center; }
   .ws-line input {
     padding: 7px 9px; border-radius: 6px; border: 1px solid var(--line);
     background: var(--bg); color: var(--text); font-size: 13px;
@@ -153,10 +154,11 @@
     display: flex; gap: 8px; margin-bottom: 4px; font-size: 11px;
     color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.03em;
   }
-  .ws-line-header span:nth-child(1) { flex: 2; }
-  .ws-line-header span:nth-child(2) { flex: 1; }
-  .ws-line-header span:nth-child(3) { flex: 0 0 58px; text-align: center; }
-  .ws-line-header span:nth-child(4) { flex: 0 0 26px; }
+  .ws-line-header span:nth-child(1) { flex: 0 0 34px; }
+  .ws-line-header span:nth-child(2) { flex: 2; }
+  .ws-line-header span:nth-child(3) { flex: 1; }
+  .ws-line-header span:nth-child(4) { flex: 0 0 58px; text-align: center; }
+  .ws-line-header span:nth-child(5) { flex: 0 0 26px; }
 
   .btn-sm {
     border: 1px solid var(--line); background: var(--surface); border-radius: 6px;
@@ -326,11 +328,15 @@ function renderLocations() {
       <div data-role="ws-list">
         ${loc.workstations.length ? `
           <div class="ws-line-header">
-            <span>Label</span><span>Ext</span><span>Seats</span><span></span>
+            <span class="ws-reorder-col"></span><span>Label</span><span>Ext</span><span>Seats</span><span></span>
           </div>
         ` : ""}
-        ${loc.workstations.map(ws => `
+        ${loc.workstations.map((ws, wi) => `
           <div class="ws-line" data-ws-id="${ws.id}">
+            <div class="reorder-btns ws-reorder-col">
+              <button class="btn-sm" data-action="ws-move-up" title="Move up" ${wi === 0 ? "disabled" : ""}>▲</button>
+              <button class="btn-sm" data-action="ws-move-down" title="Move down" ${wi === loc.workstations.length - 1 ? "disabled" : ""}>▼</button>
+            </div>
             <input type="text" value="${escapeHtml(ws.label)}" placeholder="Workstation label" data-role="ws-label" />
             <input type="text" value="${escapeHtml(ws.extension)}" placeholder="Ext" data-role="ws-ext" />
             <input type="number" min="1" max="4" value="${ws.capacity || 1}" title="Number of staff who can be signed in here at once" data-role="ws-capacity" />
@@ -362,6 +368,30 @@ function wireLocationEvents() {
       const idx = config.locations.findIndex(l => l.id === block.dataset.locId);
       if (idx < config.locations.length - 1) {
         [config.locations[idx], config.locations[idx + 1]] = [config.locations[idx + 1], config.locations[idx]];
+        renderLocations();
+      }
+    };
+  });
+  document.querySelectorAll('[data-action="ws-move-up"]').forEach(btn => {
+    btn.onclick = (e) => {
+      const line = e.target.closest(".ws-line");
+      const block = e.target.closest(".loc-block");
+      const loc = config.locations.find(l => l.id === block.dataset.locId);
+      const idx = loc.workstations.findIndex(w => w.id === line.dataset.wsId);
+      if (idx > 0) {
+        [loc.workstations[idx - 1], loc.workstations[idx]] = [loc.workstations[idx], loc.workstations[idx - 1]];
+        renderLocations();
+      }
+    };
+  });
+  document.querySelectorAll('[data-action="ws-move-down"]').forEach(btn => {
+    btn.onclick = (e) => {
+      const line = e.target.closest(".ws-line");
+      const block = e.target.closest(".loc-block");
+      const loc = config.locations.find(l => l.id === block.dataset.locId);
+      const idx = loc.workstations.findIndex(w => w.id === line.dataset.wsId);
+      if (idx < loc.workstations.length - 1) {
+        [loc.workstations[idx], loc.workstations[idx + 1]] = [loc.workstations[idx + 1], loc.workstations[idx]];
         renderLocations();
       }
     };
@@ -473,7 +503,7 @@ function refreshDuplicateHighlights() {
 
 function renderStaff() {
   const el = document.getElementById("staffList");
-  const roles = ["Provider", "Primary/MA", "Front Office", "Floater", "Scribe", "Other"];
+  const roles = ["Provider", "Primary/MA", "Front Office", "Other"];
   el.innerHTML = (config.staff.length ? `
     <div class="staff-row-header">
       <span>Name</span><span>Email</span><span>Role</span><span></span>
