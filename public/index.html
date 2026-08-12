@@ -622,7 +622,7 @@
 
 <main>
   <div class="board-toolbar">
-    <div class="section-title" id="boardTitle">AM shift — who's where</div>
+    <div class="section-title" id="boardTitle">AM shift — Who's Where</div>
     <div class="view-switch" id="viewModeSwitch">
       <button data-val="location" class="active">By Location</button>
       <button data-val="person">By Person</button>
@@ -781,7 +781,7 @@ function computeOccupancy() {
 }
 
 function renderBoard() {
-  document.getElementById("boardTitle").textContent = `${viewShift} shift — who's where`;
+  document.getElementById("boardTitle").textContent = `${viewShift} shift — Who's Where`;
   renderSameAsAmButton();
   if (viewMode === "location") renderLocationView();
   else renderPersonView();
